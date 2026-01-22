@@ -37,7 +37,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, allProduc
     setIsLoaded(false);
     // Reset selection on product change, or select first variant
     if (product.variants && product.variants.length > 0) {
-        setSelectedVariant(product.variants[0]);
+        setSelectedVariant(product.variants[0] ?? null);
     } else {
         setSelectedVariant(null);
     }
@@ -210,8 +210,9 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, allProduc
                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={`w-6 h-6 transition-all ${isWishlisted ? (theme === 'dark' ? 'fill-[#EBE7DE] scale-110' : 'fill-[#1A4D2E] scale-110') : `fill-transparent ${theme === 'dark' ? 'stroke-[#EBE7DE]' : 'stroke-[#1A4D2E]'} stroke-2`}`}>
                     <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-1.344-.688 15.247 15.247 0 01-1.344-.688c-.058-.033-.115-.067-.172-.101l-1.17-1.17a15.247 15.247 0 01-1.344-.688c-.058-.033-.115-.067-.172-.101l-1.17-1.17a15.247 15.247 0 01-1.344-.688c-.058-.033-.115-.067-.172-.101l-1.17-1.17ZM12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35Z" />
            </svg>
-        </button>
-      </div>
+              </button>
+            </div>
+          </div>
 
           {/* Right: Info */}
           <div className="flex flex-col h-full">

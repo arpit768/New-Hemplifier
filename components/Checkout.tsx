@@ -5,19 +5,47 @@
 
 
 import React, { useContext, useState } from 'react';
-import { Product } from '../types';
+import { Product, ShippingAddress } from '../types';
 import { SettingsContext } from '../App';
 
 interface CheckoutProps {
   items: Product[];
   onBack: () => void;
-  onCheckoutComplete: () => void;
+  onCheckoutComplete: (shippingAddress: ShippingAddress, paymentMethod: string) => void | Promise<void>;
+  customerEmail?: string;
+  customerName?: string;
 }
 
-const Checkout: React.FC<CheckoutProps> = ({ items, onBack, onCheckoutComplete }) => {
+const Checkout: React.FC<CheckoutProps> = ({ items, onBack, onCheckoutComplete, customerEmail = '', customerName = '' }) => {
   const { formatPrice, getProductPrice, convertPrice, theme, t, currency } = useContext(SettingsContext);
   const [isProcessing, setIsProcessing] = useState(false);
-  
+  const [error, setError] = useState<string | null>(null);
+
+  // Form state for shipping address
+  const [formData, setFormData] = useState({
+    email: customerEmail,
+    firstName: customerName.split(' ')[0] || '',
+    lastName: customerName.split(' ').slice(1).join(' ') || '',
+    address: '',
+    apartment: '',
+    city: '',
+    postalCode: '',
+    country: 'Nepal',
+    phone: '',
+    newsletter: false,
+  });
+
+  // Payment method state
+  const [paymentMethod, setPaymentMethod] = useState('card');
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
   // Calculate dynamic price based on current currency
   const getItemPrice = (item: Product) => {
       const basePrice = getProductPrice(item);
@@ -29,15 +57,31 @@ const Checkout: React.FC<CheckoutProps> = ({ items, onBack, onCheckoutComplete }
   const shipping = 0; // Free shipping
   const total = subtotal + shipping;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
-    
-    // Simulate payment processing delay for demo
-    setTimeout(() => {
-        setIsProcessing(false);
-        onCheckoutComplete();
-    }, 2000);
+    setError(null);
+
+    try {
+      // Build shipping address object
+      const shippingAddress: ShippingAddress = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        address: formData.address,
+        apartment: formData.apartment,
+        city: formData.city,
+        postalCode: formData.postalCode,
+        country: formData.country,
+        phone: formData.phone,
+        email: formData.email,
+      };
+
+      // Call the checkout complete handler with collected data
+      await Promise.resolve(onCheckoutComplete(shippingAddress, paymentMethod));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Checkout failed. Please try again.');
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -59,14 +103,49 @@ const Checkout: React.FC<CheckoutProps> = ({ items, onBack, onCheckoutComplete }
           <div>
             <h1 className={`text-3xl font-serif ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-[#1A4D2E]'} mb-12`}>{t('checkout')}</h1>
             
+            {/* Error Message */}
+            {error && (
+              <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {error}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-12">
               {/* Section 1: Contact */}
               <div>
                 <h2 className={`text-xl font-serif ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-[#1A4D2E]'} mb-6`}>{t('contact_info')}</h2>
                 <div className="space-y-4">
-                   <input type="email" placeholder="Email address" required className={`w-full bg-transparent border-b ${theme === 'dark' ? 'border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]/50' : 'border-[#D6D1C7] text-[#1A4D2E] placeholder-[#5D5A53]/50'} py-3 outline-none focus:border-current transition-colors`} />
+                   <input
+                     type="email"
+                     name="email"
+                     value={formData.email}
+                     onChange={handleInputChange}
+                     placeholder="Email address"
+                     required
+                     className={`w-full bg-transparent border-b ${theme === 'dark' ? 'border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]/50' : 'border-[#D6D1C7] text-[#1A4D2E] placeholder-[#5D5A53]/50'} py-3 outline-none focus:border-current transition-colors`}
+                   />
+                   <input
+                     type="tel"
+                     name="phone"
+                     value={formData.phone}
+                     onChange={handleInputChange}
+                     placeholder="Phone number"
+                     className={`w-full bg-transparent border-b ${theme === 'dark' ? 'border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]/50' : 'border-[#D6D1C7] text-[#1A4D2E] placeholder-[#5D5A53]/50'} py-3 outline-none focus:border-current transition-colors`}
+                   />
                    <div className="flex items-center gap-2">
-                     <input type="checkbox" id="newsletter" className="accent-[#1A4D2E]" />
+                     <input
+                       type="checkbox"
+                       id="newsletter"
+                       name="newsletter"
+                       checked={formData.newsletter}
+                       onChange={handleInputChange}
+                       className="accent-[#1A4D2E]"
+                     />
                      <label htmlFor="newsletter" className={`text-sm ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-[#5D5A53]'}`}>Email me with news and offers</label>
                    </div>
                 </div>
@@ -77,14 +156,61 @@ const Checkout: React.FC<CheckoutProps> = ({ items, onBack, onCheckoutComplete }
                 <h2 className={`text-xl font-serif ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-[#1A4D2E]'} mb-6`}>{t('shipping_address')}</h2>
                 <div className="space-y-4">
                    <div className="grid grid-cols-2 gap-4">
-                      <input type="text" placeholder="First name" required className={`w-full bg-transparent border-b ${theme === 'dark' ? 'border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]/50' : 'border-[#D6D1C7] text-[#1A4D2E] placeholder-[#5D5A53]/50'} py-3 outline-none focus:border-current transition-colors`} />
-                      <input type="text" placeholder="Last name" required className={`w-full bg-transparent border-b ${theme === 'dark' ? 'border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]/50' : 'border-[#D6D1C7] text-[#1A4D2E] placeholder-[#5D5A53]/50'} py-3 outline-none focus:border-current transition-colors`} />
+                      <input
+                        type="text"
+                        name="firstName"
+                        value={formData.firstName}
+                        onChange={handleInputChange}
+                        placeholder="First name"
+                        required
+                        className={`w-full bg-transparent border-b ${theme === 'dark' ? 'border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]/50' : 'border-[#D6D1C7] text-[#1A4D2E] placeholder-[#5D5A53]/50'} py-3 outline-none focus:border-current transition-colors`}
+                      />
+                      <input
+                        type="text"
+                        name="lastName"
+                        value={formData.lastName}
+                        onChange={handleInputChange}
+                        placeholder="Last name"
+                        required
+                        className={`w-full bg-transparent border-b ${theme === 'dark' ? 'border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]/50' : 'border-[#D6D1C7] text-[#1A4D2E] placeholder-[#5D5A53]/50'} py-3 outline-none focus:border-current transition-colors`}
+                      />
                    </div>
-                   <input type="text" placeholder="Address" required className={`w-full bg-transparent border-b ${theme === 'dark' ? 'border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]/50' : 'border-[#D6D1C7] text-[#1A4D2E] placeholder-[#5D5A53]/50'} py-3 outline-none focus:border-current transition-colors`} />
-                   <input type="text" placeholder="Apartment, suite, etc. (optional)" className={`w-full bg-transparent border-b ${theme === 'dark' ? 'border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]/50' : 'border-[#D6D1C7] text-[#1A4D2E] placeholder-[#5D5A53]/50'} py-3 outline-none focus:border-current transition-colors`} />
+                   <input
+                     type="text"
+                     name="address"
+                     value={formData.address}
+                     onChange={handleInputChange}
+                     placeholder="Address"
+                     required
+                     className={`w-full bg-transparent border-b ${theme === 'dark' ? 'border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]/50' : 'border-[#D6D1C7] text-[#1A4D2E] placeholder-[#5D5A53]/50'} py-3 outline-none focus:border-current transition-colors`}
+                   />
+                   <input
+                     type="text"
+                     name="apartment"
+                     value={formData.apartment}
+                     onChange={handleInputChange}
+                     placeholder="Apartment, suite, etc. (optional)"
+                     className={`w-full bg-transparent border-b ${theme === 'dark' ? 'border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]/50' : 'border-[#D6D1C7] text-[#1A4D2E] placeholder-[#5D5A53]/50'} py-3 outline-none focus:border-current transition-colors`}
+                   />
                    <div className="grid grid-cols-2 gap-4">
-                      <input type="text" placeholder="City" required className={`w-full bg-transparent border-b ${theme === 'dark' ? 'border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]/50' : 'border-[#D6D1C7] text-[#1A4D2E] placeholder-[#5D5A53]/50'} py-3 outline-none focus:border-current transition-colors`} />
-                      <input type="text" placeholder="Postal code" required className={`w-full bg-transparent border-b ${theme === 'dark' ? 'border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]/50' : 'border-[#D6D1C7] text-[#1A4D2E] placeholder-[#5D5A53]/50'} py-3 outline-none focus:border-current transition-colors`} />
+                      <input
+                        type="text"
+                        name="city"
+                        value={formData.city}
+                        onChange={handleInputChange}
+                        placeholder="City"
+                        required
+                        className={`w-full bg-transparent border-b ${theme === 'dark' ? 'border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]/50' : 'border-[#D6D1C7] text-[#1A4D2E] placeholder-[#5D5A53]/50'} py-3 outline-none focus:border-current transition-colors`}
+                      />
+                      <input
+                        type="text"
+                        name="postalCode"
+                        value={formData.postalCode}
+                        onChange={handleInputChange}
+                        placeholder="Postal code"
+                        required
+                        className={`w-full bg-transparent border-b ${theme === 'dark' ? 'border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]/50' : 'border-[#D6D1C7] text-[#1A4D2E] placeholder-[#5D5A53]/50'} py-3 outline-none focus:border-current transition-colors`}
+                      />
                    </div>
                 </div>
               </div>
@@ -92,14 +218,73 @@ const Checkout: React.FC<CheckoutProps> = ({ items, onBack, onCheckoutComplete }
                {/* Section 3: Payment */}
               <div>
                 <h2 className={`text-xl font-serif ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-[#1A4D2E]'} mb-6`}>{t('payment')}</h2>
-                <div className={`p-6 border ${theme === 'dark' ? 'border-[#2C4A3B] bg-[#0a1f12]' : 'border-[#D6D1C7] bg-white/50'} space-y-4`}>
-                   <p className={`text-sm ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-[#5D5A53]'} mb-2`}>All transactions are secure and encrypted.</p>
-                   <input type="text" placeholder="Card number" required className={`w-full bg-transparent border-b ${theme === 'dark' ? 'border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]/50' : 'border-[#D6D1C7] text-[#1A4D2E] placeholder-[#5D5A53]/50'} py-3 outline-none focus:border-current transition-colors`} />
-                   <div className="grid grid-cols-2 gap-4">
-                      <input type="text" placeholder="Expiration (MM/YY)" required className={`w-full bg-transparent border-b ${theme === 'dark' ? 'border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]/50' : 'border-[#D6D1C7] text-[#1A4D2E] placeholder-[#5D5A53]/50'} py-3 outline-none focus:border-current transition-colors`} />
-                      <input type="text" placeholder="Security code" required className={`w-full bg-transparent border-b ${theme === 'dark' ? 'border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]/50' : 'border-[#D6D1C7] text-[#1A4D2E] placeholder-[#5D5A53]/50'} py-3 outline-none focus:border-current transition-colors`} />
-                   </div>
+
+                {/* Payment Method Selection */}
+                <div className="space-y-3 mb-6">
+                  <label className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${paymentMethod === 'card' ? (theme === 'dark' ? 'border-[#EBE7DE] bg-[#1A4D2E]/20' : 'border-[#1A4D2E] bg-[#1A4D2E]/5') : (theme === 'dark' ? 'border-[#2C4A3B]' : 'border-[#D6D1C7]')}`}>
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="card"
+                      checked={paymentMethod === 'card'}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      className="accent-[#1A4D2E]"
+                    />
+                    <span className={`${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-[#1A4D2E]'}`}>Credit Card</span>
+                  </label>
+                  <label className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${paymentMethod === 'cod' ? (theme === 'dark' ? 'border-[#EBE7DE] bg-[#1A4D2E]/20' : 'border-[#1A4D2E] bg-[#1A4D2E]/5') : (theme === 'dark' ? 'border-[#2C4A3B]' : 'border-[#D6D1C7]')}`}>
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="cod"
+                      checked={paymentMethod === 'cod'}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      className="accent-[#1A4D2E]"
+                    />
+                    <span className={`${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-[#1A4D2E]'}`}>Cash on Delivery</span>
+                  </label>
+                  <label className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${paymentMethod === 'esewa' ? (theme === 'dark' ? 'border-[#EBE7DE] bg-[#1A4D2E]/20' : 'border-[#1A4D2E] bg-[#1A4D2E]/5') : (theme === 'dark' ? 'border-[#2C4A3B]' : 'border-[#D6D1C7]')}`}>
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="esewa"
+                      checked={paymentMethod === 'esewa'}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      className="accent-[#1A4D2E]"
+                    />
+                    <span className={`${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-[#1A4D2E]'}`}>eSewa</span>
+                  </label>
                 </div>
+
+                {/* Card Details - only show when card payment selected */}
+                {paymentMethod === 'card' && (
+                  <div className={`p-6 border ${theme === 'dark' ? 'border-[#2C4A3B] bg-[#0a1f12]' : 'border-[#D6D1C7] bg-white/50'} space-y-4`}>
+                     <p className={`text-sm ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-[#5D5A53]'} mb-2`}>All transactions are secure and encrypted.</p>
+                     <input type="text" placeholder="Card number" required className={`w-full bg-transparent border-b ${theme === 'dark' ? 'border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]/50' : 'border-[#D6D1C7] text-[#1A4D2E] placeholder-[#5D5A53]/50'} py-3 outline-none focus:border-current transition-colors`} />
+                     <div className="grid grid-cols-2 gap-4">
+                        <input type="text" placeholder="Expiration (MM/YY)" required className={`w-full bg-transparent border-b ${theme === 'dark' ? 'border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]/50' : 'border-[#D6D1C7] text-[#1A4D2E] placeholder-[#5D5A53]/50'} py-3 outline-none focus:border-current transition-colors`} />
+                        <input type="text" placeholder="Security code" required className={`w-full bg-transparent border-b ${theme === 'dark' ? 'border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]/50' : 'border-[#D6D1C7] text-[#1A4D2E] placeholder-[#5D5A53]/50'} py-3 outline-none focus:border-current transition-colors`} />
+                     </div>
+                  </div>
+                )}
+
+                {/* COD Notice */}
+                {paymentMethod === 'cod' && (
+                  <div className={`p-6 border ${theme === 'dark' ? 'border-[#2C4A3B] bg-[#0a1f12]' : 'border-[#D6D1C7] bg-white/50'}`}>
+                    <p className={`text-sm ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-[#5D5A53]'}`}>
+                      Pay with cash when your order is delivered. Please have the exact amount ready.
+                    </p>
+                  </div>
+                )}
+
+                {/* eSewa Notice */}
+                {paymentMethod === 'esewa' && (
+                  <div className={`p-6 border ${theme === 'dark' ? 'border-[#2C4A3B] bg-[#0a1f12]' : 'border-[#D6D1C7] bg-white/50'}`}>
+                    <p className={`text-sm ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-[#5D5A53]'}`}>
+                      You will be redirected to eSewa to complete your payment securely.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div>

@@ -4,15 +4,16 @@
 */
 
 import React, { useContext } from 'react';
-import { Customer } from '../types';
+import { Customer, Order } from '../types';
 import { SettingsContext } from '../App';
 
 interface CustomerProfileProps {
   customer: Customer;
+  orders: Order[];
   onLogout: () => void;
 }
 
-const CustomerProfile: React.FC<CustomerProfileProps> = ({ customer, onLogout }) => {
+const CustomerProfile: React.FC<CustomerProfileProps> = ({ customer, orders, onLogout }) => {
   const { theme, t, formatPrice, convertPrice } = useContext(SettingsContext);
 
   const getStatusStep = (status: string) => {
@@ -72,18 +73,29 @@ const CustomerProfile: React.FC<CustomerProfileProps> = ({ customer, onLogout })
             <div className="lg:col-span-2">
                 <h3 className={`text-xl font-serif ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-[#1A4D2E]'} mb-8`}>{t('order_history')}</h3>
                 <div className="space-y-8">
-                    {customer.orders && customer.orders.length > 0 ? (
-                        customer.orders.map((order) => {
+                    {orders && orders.length > 0 ? (
+                        orders.map((order) => {
                             const currentStep = getStatusStep(order.status);
-                            
+                            const orderDate = new Date(order.createdAt).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                            });
+
                             return (
                                 <div key={order.id} className={`p-6 md:p-8 ${theme === 'dark' ? 'bg-[#153e25] border-[#2C4A3B]' : 'bg-white border-[#D6D1C7]'} border shadow-sm transition-shadow hover:shadow-md`}>
                                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 border-b border-dashed border-[#A8A29E]/30 pb-6">
                                         <div>
                                             <div className="flex items-center gap-4 mb-2">
-                                                <span className={`font-serif text-lg ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-[#1A4D2E]'}`}>Order #{order.id}</span>
+                                                <span className={`font-serif text-lg ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-[#1A4D2E]'}`}>Order #{order.orderNumber}</span>
+                                                <span className={`px-2 py-1 text-xs uppercase tracking-wider rounded ${
+                                                    order.status === 'Delivered' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
+                                                    order.status === 'Shipped' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
+                                                    order.status === 'Cancelled' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
+                                                    'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                                }`}>{order.status}</span>
                                             </div>
-                                            <p className={`text-sm ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-[#5D5A53]'}`}>Placed on {order.date}</p>
+                                            <p className={`text-sm ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-[#5D5A53]'}`}>Placed on {orderDate}</p>
                                         </div>
                                         <div className="text-right">
                                             <p className={`text-lg font-medium ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-[#1A4D2E]'}`}>{formatPrice(convertPrice(order.total))}</p>
@@ -96,9 +108,9 @@ const CustomerProfile: React.FC<CustomerProfileProps> = ({ customer, onLogout })
                                         <div className="relative flex justify-between items-center w-full mt-4">
                                             {/* Background Line */}
                                             <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gray-200 dark:bg-gray-700 -z-10 -translate-y-1/2"></div>
-                                            
+
                                             {/* Active Line Progress */}
-                                            <div 
+                                            <div
                                                 className="absolute top-1/2 left-0 h-0.5 bg-[#1A4D2E] dark:bg-[#EBE7DE] -z-10 -translate-y-1/2 transition-all duration-500"
                                                 style={{ width: `${(Math.max(0, currentStep) / (steps.length - 1)) * 100}%` }}
                                             ></div>
@@ -106,12 +118,12 @@ const CustomerProfile: React.FC<CustomerProfileProps> = ({ customer, onLogout })
                                             {steps.map((step, idx) => {
                                                 const isActive = idx <= currentStep;
                                                 const isCurrent = idx === currentStep;
-                                                
+
                                                 return (
                                                     <div key={idx} className="flex flex-col items-center gap-2 bg-inherit">
-                                                        <div 
+                                                        <div
                                                             className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
-                                                                isActive 
+                                                                isActive
                                                                     ? (theme === 'dark' ? 'bg-[#EBE7DE] border-[#EBE7DE] text-[#051009]' : 'bg-[#1A4D2E] border-[#1A4D2E] text-white')
                                                                     : (theme === 'dark' ? 'bg-[#051009] border-[#A8A29E] text-[#A8A29E]' : 'bg-[#F5F2EB] border-[#D6D1C7] text-[#A8A29E]')
                                                             } ${isCurrent ? 'scale-110 shadow-lg' : ''}`}
@@ -119,7 +131,7 @@ const CustomerProfile: React.FC<CustomerProfileProps> = ({ customer, onLogout })
                                                             {step.icon}
                                                         </div>
                                                         <span className={`text-[10px] md:text-xs font-medium uppercase tracking-wider ${
-                                                            isActive 
+                                                            isActive
                                                                 ? (theme === 'dark' ? 'text-[#EBE7DE]' : 'text-[#1A4D2E]')
                                                                 : (theme === 'dark' ? 'text-[#A8A29E]' : 'text-[#A8A29E]')
                                                         }`}>
@@ -137,9 +149,21 @@ const CustomerProfile: React.FC<CustomerProfileProps> = ({ customer, onLogout })
 
                                     <div className={`mt-8 pt-6 border-t ${theme === 'dark' ? 'border-[#2C4A3B]' : 'border-[#D6D1C7]'}`}>
                                          <p className={`text-sm font-medium ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-[#1A4D2E]'} mb-2`}>Items:</p>
-                                         <ul className={`text-sm ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-[#5D5A53]'} space-y-1 list-disc pl-5`}>
+                                         <ul className={`text-sm ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-[#5D5A53]'} space-y-2`}>
                                              {order.items.map((item, i) => (
-                                                 <li key={i}>{item}</li>
+                                                 <li key={i} className="flex items-center gap-3">
+                                                     {item.imageUrl && (
+                                                         <img src={item.imageUrl} alt={item.name} className="w-10 h-10 object-cover rounded" />
+                                                     )}
+                                                     <div>
+                                                         <span className={`block ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-[#1A4D2E]'}`}>
+                                                             {item.name} {item.variant && `(${item.variant})`}
+                                                         </span>
+                                                         <span className={`text-xs ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-[#5D5A53]'}`}>
+                                                             Qty: {item.quantity} × {formatPrice(convertPrice(item.price))}
+                                                         </span>
+                                                     </div>
+                                                 </li>
                                              ))}
                                          </ul>
                                     </div>

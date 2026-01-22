@@ -1,0 +1,107 @@
+/* Google Fonts - must be first */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply font-sans bg-hemplifier-light text-hemplifier-muted antialiased;
+  }
+
+  .dark body {
+    @apply bg-hemplifier-dark text-[#EBE7DE];
+  }
+
+  /* Selection styling */
+  ::selection {
+    @apply bg-hemplifier-accent text-hemplifier-text;
+  }
+}
+
+@layer components {
+  /* Noise overlay for texture */
+  .noise-overlay {
+    @apply fixed inset-0 pointer-events-none z-[9999] opacity-[0.04];
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  }
+
+  /* Button variants */
+  .btn-primary {
+    @apply px-8 py-4 bg-hemplifier-text text-hemplifier-light uppercase tracking-widest text-sm
+           hover:bg-opacity-90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply px-8 py-4 border border-hemplifier-text text-hemplifier-text uppercase tracking-widest text-sm
+           hover:bg-hemplifier-text hover:text-hemplifier-light transition-all duration-500;
+  }
+
+  .btn-outline {
+    @apply inline-block px-10 py-4 border border-current uppercase tracking-widest text-sm
+           hover:bg-current hover:text-hemplifier-light transition-all duration-500;
+  }
+
+  /* Card styles */
+  .card {
+    @apply bg-white dark:bg-hemplifier-dark/50 rounded-lg shadow-sm
+           hover:shadow-md transition-shadow duration-300;
+  }
+
+  /* Input styles */
+  .input-field {
+    @apply w-full px-4 py-3 border border-hemplifier-accent bg-transparent
+           focus:border-hemplifier-text focus:outline-none focus:ring-1 focus:ring-hemplifier-text
+           transition-colors duration-200;
+  }
+
+  /* Link underline animation */
+  .link-underline {
+    @apply relative inline-block;
+  }
+
+  .link-underline::after {
+    @apply absolute left-0 bottom-0 w-full h-px bg-current
+           transform scale-x-0 origin-right transition-transform duration-300;
+    content: '';
+  }
+
+  .link-underline:hover::after {
+    @apply scale-x-100 origin-left;
+  }
+}
+
+@layer utilities {
+  /* Hide scrollbar */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Text balance for headings */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Aspect ratios */
+  .aspect-product {
+    aspect-ratio: 3/4;
+  }
+
+  .aspect-hero {
+    aspect-ratio: 16/9;
+  }
+
+  /* Gradient overlays */
+  .gradient-overlay {
+    @apply absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent;
+  }
+}

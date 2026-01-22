@@ -3,100 +3,45 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hemplifier - Organic Technology</title>
-    <meta name="description" content="Hemplifier - Premium warm minimalist electronics" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            fontFamily: {
-              serif: ['Playfair Display', 'serif'],
-              sans: ['Inter', 'sans-serif'],
-            },
-            colors: {
-              hemplifier: {
-                light: '#F5F2EB',
-                dark: '#0a1f12',
-                accent: '#D6D1C7',
-                text: '#1A4D2E'
-              }
-            },
-            animation: {
-              'blob': 'blob 10s infinite',
-              'fade-in-up': 'fade-in-up 1s cubic-bezier(0.2, 1, 0.3, 1) forwards',
-              'spin-slow': 'spin 15s linear infinite',
-            },
-            keyframes: {
-              blob: {
-                '0%': { borderRadius: '60% 40% 30% 70% / 60% 30% 70% 40%' },
-                '50%': { borderRadius: '30% 60% 70% 40% / 50% 60% 30% 60%' },
-                '100%': { borderRadius: '60% 40% 30% 70% / 60% 30% 70% 40%' },
-              },
-              'fade-in-up': {
-                '0%': { opacity: '0', transform: 'translateY(30px)' },
-                '100%': { opacity: '1', transform: 'translateY(0)' },
-              }
-            }
-          }
-        }
-      }
-    </script>
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&display=swap');
-      
-      html {
-        scroll-behavior: smooth;
-      }
 
-      body {
-        font-family: 'Inter', sans-serif;
-        background-color: #F5F2EB;
-        color: #2C2A26;
-      }
+    <!-- Primary Meta Tags -->
+    <title>Hemplifier - Organic Technology for Quiet Living</title>
+    <meta name="title" content="Hemplifier - Organic Technology for Quiet Living" />
+    <meta name="description" content="Technology designed to disappear into your life. Discover our collection of warm, organic electronics crafted from natural materials." />
+    <meta name="keywords" content="organic technology, sustainable electronics, hemp products, minimalist tech, Nepal, eco-friendly gadgets" />
+    <meta name="author" content="Hemplifier" />
+    <meta name="robots" content="index, follow" />
 
-      /* Global Noise Texture */
-      .noise-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        z-index: 9999;
-        opacity: 0.04;
-        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-      }
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://hemplifier.com/" />
+    <meta property="og:title" content="Hemplifier - Organic Technology for Quiet Living" />
+    <meta property="og:description" content="Technology designed to disappear into your life. Discover our collection of warm, organic electronics." />
+    <meta property="og:image" content="/og-image.jpg" />
 
-      .dark body {
-        background-color: #051009;
-        color: #EBE7DE;
-      }
-      
-      /* Hide scrollbar */
-      .no-scrollbar::-webkit-scrollbar {
-        display: none;
-      }
-      .no-scrollbar {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-      }
-    </style>
-  <script type="importmap">
-{
-  "imports": {
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.0",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/client": "https://aistudiocdn.com/react-dom@^19.2.0/client",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
-  }
-}
-</script>
-</head>
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://hemplifier.com/" />
+    <meta property="twitter:title" content="Hemplifier - Organic Technology for Quiet Living" />
+    <meta property="twitter:description" content="Technology designed to disappear into your life. Discover our collection of warm, organic electronics." />
+    <meta property="twitter:image" content="/og-image.jpg" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#1A4D2E" />
+    <meta name="msapplication-TileColor" content="#1A4D2E" />
+
+    <!-- Preconnect to external resources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://images.unsplash.com" />
+  </head>
   <body>
     <div class="noise-overlay"></div>
     <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
   </body>
 </html>

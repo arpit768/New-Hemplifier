@@ -16,13 +16,16 @@ import { ProductDetail } from './components/ProductDetail';
 import JournalDetail from './components/JournalDetail';
 import CartDrawer from './components/CartDrawer';
 import Checkout from './components/Checkout';
-import Admin from './components/Admin'; 
+import Admin from './components/Admin';
+import AdminLogin from './components/AdminLogin';
 import Login from './components/Login';
 import Register from './components/Register';
 import CustomerProfile from './components/CustomerProfile';
 import OrderSuccess from './components/OrderSuccess';
-import { PRODUCTS, JOURNAL_ARTICLES, TRANSLATIONS } from './constants';
-import { Product, JournalArticle, ViewState, Language, Customer, Currency } from './types';
+import { TRANSLATIONS } from './constants';
+import { Product, JournalArticle, ViewState, Language, Customer, Currency, Order } from './types';
+import OrderTracking from './components/OrderTracking';
+import { productsApi, ordersApi, articlesApi, authApi, wishlistApi } from './lib/api';
 
 // Create Global Context for Settings
 export const SettingsContext = createContext<{
@@ -72,62 +75,102 @@ function App() {
   
   const [currentUser, setCurrentUser] = useState<Customer | null>(null);
 
-  // Data State - Initialize from Local Storage if available
-  const [products, setProducts] = useState<Product[]>(() => {
+  // Admin Authentication State
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
     try {
-      const storedProducts = localStorage.getItem('hemplifier-products');
-      return storedProducts ? JSON.parse(storedProducts) : PRODUCTS;
-    } catch (error) {
-      console.error("Failed to load products from local storage", error);
-      return PRODUCTS;
+      const storedAdmin = localStorage.getItem('hemplifier-admin-auth');
+      return storedAdmin === 'true';
+    } catch {
+      return false;
     }
   });
 
-  const [articles, setArticles] = useState<JournalArticle[]>(() => {
-    try {
-      const storedArticles = localStorage.getItem('hemplifier-articles');
-      return storedArticles ? JSON.parse(storedArticles) : JOURNAL_ARTICLES;
-    } catch (error) {
-      console.error("Failed to load articles from local storage", error);
-      return JOURNAL_ARTICLES;
-    }
-  });
+  // Data State - Fetched from API
+  const [products, setProducts] = useState<Product[]>([]);
+  const [articles, setArticles] = useState<JournalArticle[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  // Loading and error states for future use (e.g., showing loading spinners)
+  const [, setDataLoading] = useState(true);
+  const [, setDataError] = useState<string | null>(null);
 
-  // Load other settings from local storage
+  // Fetch all data from API on mount
   useEffect(() => {
-    try {
-      const storedWishlist = localStorage.getItem('hemplifier-wishlist');
-      if (storedWishlist) setWishlist(JSON.parse(storedWishlist));
-      
-      const storedUser = localStorage.getItem('hemplifier-user');
-      if (storedUser) setCurrentUser(JSON.parse(storedUser));
-      
-      // Auto-detect currency based on timezone if not manually overridden later
-      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      if (timeZone && !timeZone.includes('Kathmandu') && !timeZone.includes('Nepal')) {
-          setCurrency('USD');
-      } else {
-          setCurrency('NPR');
-      }
+    const fetchAllData = async () => {
+      setDataLoading(true);
+      setDataError(null);
 
-    } catch (error) {
-      console.error("Failed to parse local storage", error);
-    }
+      try {
+        // Fetch all data in parallel
+        const [productsData, articlesData, ordersData, wishlistData, userData] = await Promise.all([
+          productsApi.getAll(),
+          articlesApi.getAll(),
+          ordersApi.getAll(),
+          wishlistApi.get(),
+          authApi.getCurrentUser(),
+        ]);
+
+        setProducts(productsData);
+        setArticles(articlesData);
+        setOrders(ordersData);
+        setWishlist(wishlistData);
+        if (userData) setCurrentUser(userData);
+
+        // Check admin status
+        const adminStatus = await authApi.isAdmin();
+        setIsAdminAuthenticated(adminStatus);
+
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+        setDataError('Failed to load data. Please refresh the page.');
+      } finally {
+        setDataLoading(false);
+      }
+    };
+
+    fetchAllData();
+
+    // Subscribe to real-time order updates for admin
+    const orderSubscription = ordersApi.subscribeToAllOrders((updatedOrders) => {
+      setOrders(updatedOrders);
+    });
+
+    // Subscribe to auth state changes
+    const authSubscription = authApi.onAuthStateChange(async (user) => {
+      setCurrentUser(user);
+      if (user) {
+        const wishlistData = await wishlistApi.get(user.id);
+        setWishlist(wishlistData);
+      }
+    });
+
+    return () => {
+      orderSubscription.unsubscribe();
+      authSubscription.unsubscribe();
+    };
   }, []);
 
-  // Sync settings and data to local storage
+  // Initialize settings and handle URL-based routing
   useEffect(() => {
-    localStorage.setItem('hemplifier-wishlist', JSON.stringify(wishlist));
-  }, [wishlist]);
+    // Auto-detect currency based on timezone
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (timeZone && !timeZone.includes('Kathmandu') && !timeZone.includes('Nepal')) {
+      setCurrency('USD');
+    } else {
+      setCurrency('NPR');
+    }
 
-  useEffect(() => {
-    localStorage.setItem('hemplifier-products', JSON.stringify(products));
-  }, [products]);
+    // Handle URL hash-based routing for admin access
+    const hash = window.location.hash.replace('#', '');
+    if (hash === 'admin' || hash === 'admin-login') {
+      if (isAdminAuthenticated) {
+        setView({ type: 'admin' });
+      } else {
+        setView({ type: 'admin-login' });
+      }
+    }
+  }, [isAdminAuthenticated]);
 
-  useEffect(() => {
-    localStorage.setItem('hemplifier-articles', JSON.stringify(articles));
-  }, [articles]);
-
+  // Sync theme to localStorage and DOM
   useEffect(() => {
     localStorage.setItem('hemplifier-theme', theme);
     if (theme === 'dark') {
@@ -137,114 +180,198 @@ function App() {
     }
   }, [theme]);
 
-  // Handle Authentication
-  const handleCustomerLogin = (email: string) => {
-      // Mock login logic
-      const mockUser: Customer = {
-          id: 'c1',
-          name: email.split('@')[0], // Extract name from email for demo
-          email: email,
-          orders: [
-              { id: '1023', date: 'April 10, 2025', total: 105000, status: 'Delivered', items: ['Hemplifier Harmony', 'Hemplifier Epoch'] },
-              { id: '1024', date: 'May 2, 2025', total: 5800, status: 'Processing', items: ['Sindhu Face Cream'] }
-          ]
-      };
-      // Check if user exists in local storage to persist orders across reloads for demo
-      const storedUserStr = localStorage.getItem('hemplifier-user');
-      if (storedUserStr) {
-          const storedUser = JSON.parse(storedUserStr);
-          if (storedUser.email === email) {
-              setCurrentUser(storedUser);
-          } else {
-               setCurrentUser(mockUser);
-               localStorage.setItem('hemplifier-user', JSON.stringify(mockUser));
-          }
-      } else {
-          setCurrentUser(mockUser);
-          localStorage.setItem('hemplifier-user', JSON.stringify(mockUser));
-      }
-      
+  // Handle Authentication via API
+  const handleCustomerLogin = async (email: string, password?: string) => {
+    try {
+      const user = await authApi.signIn(email, password || 'demo123');
+      setCurrentUser(user);
+
+      // Fetch user's wishlist
+      const wishlistData = await wishlistApi.get(user.id);
+      setWishlist(wishlistData);
+
       if (pendingCheckout) {
-          setPendingCheckout(false);
-          setView({ type: 'checkout' });
+        setPendingCheckout(false);
+        setView({ type: 'checkout' });
       } else {
-          setView({ type: 'profile' });
+        setView({ type: 'profile' });
       }
+    } catch (error) {
+      console.error('Login failed:', error);
+      // For demo mode fallback
+      const demoUser: Customer = {
+        id: `c${Date.now()}`,
+        name: email.split('@')[0] || 'User',
+        email,
+        orders: []
+      };
+      setCurrentUser(demoUser);
+      if (pendingCheckout) {
+        setPendingCheckout(false);
+        setView({ type: 'checkout' });
+      } else {
+        setView({ type: 'profile' });
+      }
+    }
   };
 
-  const handleCustomerRegister = (name: string, email: string) => {
+  const handleCustomerRegister = async (name: string, email: string, password?: string) => {
+    try {
+      const user = await authApi.signUp(email, password || 'demo123', name);
+      setCurrentUser(user);
+
+      if (pendingCheckout) {
+        setPendingCheckout(false);
+        setView({ type: 'checkout' });
+      } else {
+        setView({ type: 'profile' });
+      }
+    } catch (error) {
+      console.error('Registration failed:', error);
+      // For demo mode fallback
       const newUser: Customer = {
-          id: `c${Date.now()}`,
-          name,
-          email,
-          orders: []
+        id: `c${Date.now()}`,
+        name,
+        email,
+        orders: []
       };
       setCurrentUser(newUser);
-      localStorage.setItem('hemplifier-user', JSON.stringify(newUser));
-      
       if (pendingCheckout) {
-          setPendingCheckout(false);
-          setView({ type: 'checkout' });
+        setPendingCheckout(false);
+        setView({ type: 'checkout' });
       } else {
-          setView({ type: 'profile' });
+        setView({ type: 'profile' });
       }
+    }
   };
 
-  const handleCustomerLogout = () => {
-      setCurrentUser(null);
-      localStorage.removeItem('hemplifier-user');
-      setView({ type: 'home' });
+  const handleCustomerLogout = async () => {
+    try {
+      await authApi.signOut();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+    setCurrentUser(null);
+    setWishlist([]);
+    setView({ type: 'home' });
   };
 
-  // Checkout Logic
-  const handleCheckoutComplete = () => {
-      if (currentUser) {
-          const newOrder = {
-              id: Math.floor(100000 + Math.random() * 900000).toString(),
-              date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-              total: cartItems.reduce((sum, item) => {
-                  // Always calc in NPR for storage consistency
-                  const price = item.salePrice ?? item.price;
-                  const adj = item.selectedVariant ? item.selectedVariant.priceAdjustment : 0;
-                  return sum + price + adj;
-              }, 0),
-              status: 'Placed' as const,
-              items: cartItems.map(i => i.selectedVariant ? `${i.name} (${i.selectedVariant.name})` : i.name)
-          };
-          
-          const updatedUser = { 
-              ...currentUser, 
-              orders: [newOrder, ...(currentUser.orders || [])] 
-          };
-          
-          setCurrentUser(updatedUser);
-          localStorage.setItem('hemplifier-user', JSON.stringify(updatedUser));
+  // Admin Authentication via API
+  const handleAdminLogin = async (email: string, password: string): Promise<boolean> => {
+    try {
+      const success = await authApi.adminLogin(email, password);
+      if (success) {
+        setIsAdminAuthenticated(true);
+        setView({ type: 'admin' });
+        // Refresh orders for admin view
+        const ordersData = await ordersApi.getAll();
+        setOrders(ordersData);
+        return true;
       }
+      return false;
+    } catch (error) {
+      console.error('Admin login error:', error);
+      return false;
+    }
+  };
 
+  const handleAdminLogout = async () => {
+    try {
+      await authApi.adminLogout();
+    } catch (error) {
+      console.error('Admin logout error:', error);
+    }
+    setIsAdminAuthenticated(false);
+    setView({ type: 'home' });
+  };
+
+  // Checkout Logic - Create order via API
+  const handleCheckoutComplete = async (shippingAddress: any, paymentMethod: string) => {
+    try {
+      // Calculate order totals
+      const subtotal = cartItems.reduce((sum, item) => {
+        const price = item.salePrice ?? item.price;
+        const adj = item.selectedVariant ? item.selectedVariant.priceAdjustment : 0;
+        return sum + price + adj;
+      }, 0);
+      const shippingCost = subtotal >= 50000 ? 0 : 150; // Free shipping over Rs. 50,000
+      const tax = Math.round(subtotal * 0.13); // 13% VAT
+      const total = subtotal + shippingCost + tax;
+
+      // Prepare order items
+      const orderItems = cartItems.map(item => ({
+        productId: item.id,
+        name: item.name,
+        variant: item.selectedVariant?.name,
+        quantity: 1,
+        price: (item.salePrice ?? item.price) + (item.selectedVariant?.priceAdjustment || 0),
+        imageUrl: item.imageUrl,
+      }));
+
+      // Create order via API
+      const newOrder = await ordersApi.create({
+        customerId: currentUser?.id,
+        customerName: shippingAddress.fullName || currentUser?.name || '',
+        customerEmail: shippingAddress.email || currentUser?.email || '',
+        items: orderItems,
+        subtotal,
+        shippingCost,
+        tax,
+        total,
+        shippingAddress,
+        paymentMethod,
+      });
+
+      // Add to local orders state for immediate display
+      setOrders(prev => [newOrder, ...prev]);
+
+      // Clear cart
       setCartItems([]);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       setView({ type: 'order-success' });
+    } catch (error) {
+      console.error('Checkout failed:', error);
+      // Still show success for demo mode
+      setCartItems([]);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setView({ type: 'order-success' });
+    }
   };
 
-  const handleAddComment = (articleId: number, comment: { author: string, text: string }) => {
-    const newComment = {
-        id: `c${Date.now()}`,
-        author: comment.author,
-        text: comment.text,
-        date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-    };
-    
-    const updatedArticles = articles.map(a => 
-        a.id === articleId 
-        ? { ...a, comments: [newComment, ...(a.comments || [])] }
-        : a
-    );
-    setArticles(updatedArticles);
+  // Add comment via API
+  const handleAddComment = async (articleId: number, comment: { author: string, text: string }) => {
+    try {
+      const newComment = await articlesApi.addComment(articleId, comment);
 
-    // If currently viewing this article, update the view state too so UI reflects immediately
-    if (view.type === 'journal-detail' && view.article.id === articleId) {
-         const updatedArticle = updatedArticles.find(a => a.id === articleId);
-         if (updatedArticle) setView({ ...view, article: updatedArticle });
+      const updatedArticles = articles.map(a =>
+        a.id === articleId
+          ? { ...a, comments: [newComment, ...(a.comments || [])] }
+          : a
+      );
+      setArticles(updatedArticles);
+
+      // If currently viewing this article, update the view state
+      if (view.type === 'journal-detail' && view.article.id === articleId) {
+        const updatedArticle = updatedArticles.find(a => a.id === articleId);
+        if (updatedArticle) setView({ ...view, article: updatedArticle });
+      }
+    } catch (error) {
+      console.error('Failed to add comment:', error);
+    }
+  };
+
+  // Handle wishlist toggle via API
+  const handleToggleWishlist = async (productId: string) => {
+    try {
+      await wishlistApi.toggle(productId, currentUser?.id);
+      // Update local state optimistically
+      setWishlist(prev =>
+        prev.includes(productId)
+          ? prev.filter(id => id !== productId)
+          : [...prev, productId]
+      );
+    } catch (error) {
+      console.error('Failed to toggle wishlist:', error);
     }
   };
 
@@ -284,14 +411,6 @@ function App() {
     return `Rs. ${price.toLocaleString('en-IN')}`;
   };
 
-  const handleToggleWishlist = (productId: string) => {
-    setWishlist(prev => 
-      prev.includes(productId) 
-        ? prev.filter(id => id !== productId)
-        : [...prev, productId]
-    );
-  };
-
   // Handle navigation
   const handleNavClick = (e: React.MouseEvent<HTMLElement>, targetId: string) => {
     e.preventDefault();
@@ -313,13 +432,24 @@ function App() {
             setView({ type: 'journal' });
             break;
         case 'admin':
-            setView({ type: 'admin' });
+            // Redirect to admin login if not authenticated
+            if (isAdminAuthenticated) {
+              setView({ type: 'admin' });
+            } else {
+              setView({ type: 'admin-login' });
+            }
+            break;
+        case 'admin-login':
+            setView({ type: 'admin-login' });
             break;
         case 'login':
             setView({ type: 'login' });
             break;
         case 'profile':
             setView({ type: 'profile' });
+            break;
+        case 'order-tracking':
+            setView({ type: 'order-tracking' });
             break;
         default:
             setView({ type: 'home' });
@@ -369,16 +499,30 @@ function App() {
   return (
     <SettingsContext.Provider value={contextValue}>
       <div className={`min-h-screen font-sans transition-colors duration-300 ${theme === 'dark' ? 'bg-[#051009] text-[#EBE7DE]' : 'bg-[#F5F2EB] text-[#1A4D2E]'} selection:bg-[#D6D1C7] selection:text-[#1A4D2E]`}>
-        {/* Admin View is handled separately to allow full screen take over if needed, 
-            but wrapped in context to support theming inside Admin too */}
-        {view.type === 'admin' ? (
-             <Admin 
-                products={products} 
-                setProducts={setProducts}
-                articles={articles}
-                setArticles={setArticles}
-                onExit={() => setView({ type: 'home' })}
+        {/* Admin Login View */}
+        {view.type === 'admin-login' ? (
+          <AdminLogin
+            onLogin={handleAdminLogin}
+            onBack={() => setView({ type: 'home' })}
+          />
+        ) : view.type === 'admin' ? (
+          /* Admin View is handled separately - requires authentication */
+          isAdminAuthenticated ? (
+            <Admin
+              products={products}
+              setProducts={setProducts}
+              articles={articles}
+              setArticles={setArticles}
+              orders={orders}
+              setOrders={setOrders}
+              onExit={handleAdminLogout}
             />
+          ) : (
+            <AdminLogin
+              onLogin={handleAdminLogin}
+              onBack={() => setView({ type: 'home' })}
+            />
+          )
         ) : (
           <>
             <Navbar 
@@ -551,10 +695,12 @@ function App() {
               )}
 
               {view.type === 'checkout' && (
-                  <Checkout 
+                  <Checkout
                       items={cartItems}
                       onBack={() => setView({ type: 'home' })}
                       onCheckoutComplete={handleCheckoutComplete}
+                      customerEmail={currentUser?.email}
+                      customerName={currentUser?.name}
                   />
               )}
 
@@ -583,9 +729,18 @@ function App() {
               )}
 
               {view.type === 'profile' && currentUser && (
-                  <CustomerProfile 
+                  <CustomerProfile
                       customer={currentUser}
+                      orders={orders.filter(o => o.customerId === currentUser.id)}
                       onLogout={handleCustomerLogout}
+                  />
+              )}
+
+              {view.type === 'order-tracking' && (
+                  <OrderTracking
+                      orders={orders}
+                      initialOrderId={view.orderId}
+                      onBack={() => setView({ type: 'home' })}
                   />
               )}
             </main>

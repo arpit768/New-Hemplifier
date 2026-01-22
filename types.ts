@@ -84,7 +84,7 @@ export enum LoadingState {
   SUCCESS = 'SUCCESS'
 }
 
-export type ViewState = 
+export type ViewState =
   | { type: 'home' }
   | { type: 'shop' }
   | { type: 'about' }
@@ -93,8 +93,71 @@ export type ViewState =
   | { type: 'journal-detail', article: JournalArticle }
   | { type: 'checkout' }
   | { type: 'admin' }
+  | { type: 'admin-login' }
   | { type: 'search', query: string }
   | { type: 'login' }
   | { type: 'register' }
   | { type: 'profile' }
-  | { type: 'order-success' };
+  | { type: 'order-success' }
+  | { type: 'order-tracking', orderId?: string };
+
+export interface AdminUser {
+  email: string;
+  isAuthenticated: boolean;
+}
+
+// Comprehensive Order System Types
+export type OrderStatus = 'Placed' | 'Confirmed' | 'Processing' | 'Shipped' | 'Out for Delivery' | 'Delivered' | 'Cancelled' | 'Returned';
+
+export interface OrderItem {
+  productId: string;
+  name: string;
+  variant?: string;
+  quantity: number;
+  price: number;
+  imageUrl: string;
+}
+
+export interface ShippingAddress {
+  firstName: string;
+  lastName: string;
+  fullName?: string;  // Computed from firstName + lastName if not provided
+  email: string;
+  phone: string;
+  address: string;
+  apartment?: string;
+  city: string;
+  state?: string;
+  postalCode: string;
+  country: string;
+}
+
+export interface OrderTimeline {
+  status: OrderStatus;
+  timestamp: string;
+  description: string;
+  location?: string;
+}
+
+export interface Order {
+  id: string;
+  orderNumber: string;
+  customerId: string;
+  customerName: string;
+  customerEmail: string;
+  items: OrderItem[];
+  subtotal: number;
+  shippingCost: number;
+  tax: number;
+  total: number;
+  status: OrderStatus;
+  paymentMethod: string;
+  paymentStatus: 'Pending' | 'Paid' | 'Failed' | 'Refunded';
+  shippingAddress: ShippingAddress;
+  trackingNumber?: string;
+  estimatedDelivery?: string;
+  timeline: OrderTimeline[];
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}

@@ -17,7 +17,7 @@ interface JournalDetailProps {
 }
 
 const JournalDetail: React.FC<JournalDetailProps> = ({ article, onBack, onAddComment, currentUser, onLogin }) => {
-  const { theme, t } = useContext(SettingsContext);
+  const { theme } = useContext(SettingsContext);
   const [commentText, setCommentText] = useState('');
   const [authorName, setAuthorName] = useState(currentUser?.name || '');
 

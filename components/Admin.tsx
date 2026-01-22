@@ -4,14 +4,17 @@
 */
 
 import React, { useState, useRef, useEffect, useContext } from 'react';
-import { Product, JournalArticle, ProductVariant } from '../types';
+import { Product, JournalArticle, ProductVariant, Order, OrderStatus } from '../types';
 import { SettingsContext } from '../App';
+import { productsApi, articlesApi, ordersApi } from '../lib/api';
 
 interface AdminProps {
   products: Product[];
   setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
   articles: JournalArticle[];
   setArticles: React.Dispatch<React.SetStateAction<JournalArticle[]>>;
+  orders: Order[];
+  setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
   onExit: () => void;
 }
 
@@ -32,6 +35,11 @@ const Icons = {
     Play: (props: any) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" /></svg>,
     Close: (props: any) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>,
     ChevronRight: (props: any) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>,
+    ShoppingBag: (props: any) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>,
+    Truck: (props: any) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" /></svg>,
+    Check: (props: any) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>,
+    Clock: (props: any) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+    Eye: (props: any) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>,
 };
 
 // --- Modern UI Components ---
@@ -178,45 +186,137 @@ const SidebarLink = ({ active, icon, label, onClick }: any) => {
     );
 };
 
-const Admin: React.FC<AdminProps> = ({ products, setProducts, articles, setArticles, onExit }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState('');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'journal'>('dashboard');
+const Admin: React.FC<AdminProps> = ({ products, setProducts, articles, setArticles, orders, setOrders, onExit }) => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'products' | 'journal'>('dashboard');
   const [productSearchQuery, setProductSearchQuery] = useState('');
-  
+  const [orderSearchQuery, setOrderSearchQuery] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState<OrderStatus | 'all'>('all');
+
   // Product Edit State
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isProductDrawerOpen, setIsProductDrawerOpen] = useState(false);
-  
+
   // Journal Edit State
   const [editingArticle, setEditingArticle] = useState<JournalArticle | null>(null);
   const [isJournalDrawerOpen, setIsJournalDrawerOpen] = useState(false);
 
+  // Order Detail State
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [isOrderDrawerOpen, setIsOrderDrawerOpen] = useState(false);
+
   const { formatPrice, theme, setTheme } = useContext(SettingsContext);
+
+  // Order Statistics
+  const orderStats = {
+    totalOrders: orders.length,
+    pendingOrders: orders.filter(o => o.status === 'Placed' || o.status === 'Confirmed').length,
+    processingOrders: orders.filter(o => o.status === 'Processing').length,
+    shippedOrders: orders.filter(o => o.status === 'Shipped' || o.status === 'Out for Delivery').length,
+    deliveredOrders: orders.filter(o => o.status === 'Delivered').length,
+    totalRevenue: orders.filter(o => o.paymentStatus === 'Paid').reduce((sum, o) => sum + o.total, 0),
+    todayOrders: orders.filter(o => {
+      const today = new Date().toDateString();
+      return new Date(o.createdAt).toDateString() === today;
+    }).length,
+  };
+
+  // Filter orders
+  const filteredOrders = orders.filter(order => {
+    const matchesSearch = orderSearchQuery === '' ||
+      order.orderNumber.toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
+      order.customerName.toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
+      order.customerEmail.toLowerCase().includes(orderSearchQuery.toLowerCase());
+    const matchesStatus = orderStatusFilter === 'all' || order.status === orderStatusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  // Update order status via API
+  const updateOrderStatus = async (orderId: string, newStatus: OrderStatus) => {
+    try {
+      const description = getStatusDescription(newStatus);
+      const updatedOrder = await ordersApi.updateStatus(orderId, newStatus, description);
+
+      // Update local state with API response
+      setOrders(prev => prev.map(order =>
+        order.id === orderId ? updatedOrder : order
+      ));
+
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder(updatedOrder);
+      }
+    } catch (error) {
+      console.error('Failed to update order status:', error);
+      alert('Failed to update order status. Please try again.');
+    }
+  };
+
+  const getStatusDescription = (status: OrderStatus): string => {
+    switch (status) {
+      case 'Confirmed': return 'Order has been confirmed and is being prepared';
+      case 'Processing': return 'Order is being processed and packed';
+      case 'Shipped': return 'Order has been shipped';
+      case 'Out for Delivery': return 'Order is out for delivery';
+      case 'Delivered': return 'Order has been delivered successfully';
+      case 'Cancelled': return 'Order has been cancelled';
+      case 'Returned': return 'Order has been returned';
+      default: return 'Order status updated';
+    }
+  };
+
+  const getStatusColor = (status: OrderStatus) => {
+    switch (status) {
+      case 'Delivered': return 'bg-green-100 text-green-800 border-green-200';
+      case 'Shipped':
+      case 'Out for Delivery': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'Processing':
+      case 'Confirmed': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'Cancelled':
+      case 'Returned': return 'bg-red-100 text-red-800 border-red-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password === 'hemp123') setIsAuthenticated(true);
-    else alert('Incorrect password');
-  };
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSaveProduct = (e: React.FormEvent) => {
+  const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingProduct) return;
-    if (products.some(p => p.id === editingProduct.id)) {
-        setProducts(prev => prev.map(p => p.id === editingProduct.id ? editingProduct : p));
-    } else {
-        setProducts(prev => [...prev, editingProduct]);
+    if (!editingProduct || isSaving) return;
+
+    setIsSaving(true);
+    try {
+      if (products.some(p => p.id === editingProduct.id)) {
+        // Update existing product via API
+        const updated = await productsApi.update(editingProduct.id, editingProduct);
+        setProducts(prev => prev.map(p => p.id === editingProduct.id ? updated : p));
+      } else {
+        // Create new product via API
+        const { id, ...newProductData } = editingProduct;
+        const created = await productsApi.create(newProductData);
+        setProducts(prev => [...prev, created]);
+      }
+      setIsProductDrawerOpen(false);
+      setTimeout(() => setEditingProduct(null), 300);
+    } catch (error) {
+      console.error('Failed to save product:', error);
+      alert('Failed to save product. Please try again.');
+    } finally {
+      setIsSaving(false);
     }
-    setIsProductDrawerOpen(false);
-    setTimeout(() => setEditingProduct(null), 300);
   };
 
-  const handleDeleteProduct = (id: string) => {
-      if (confirm('Are you sure you want to delete this product?')) setProducts(prev => prev.filter(p => p.id !== id));
+  const handleDeleteProduct = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this product?')) return;
+
+    try {
+      await productsApi.delete(id);
+      setProducts(prev => prev.filter(p => p.id !== id));
+    } catch (error) {
+      console.error('Failed to delete product:', error);
+      alert('Failed to delete product. Please try again.');
+    }
   };
 
   const startEditProduct = (product?: Product) => {
@@ -239,29 +339,69 @@ const Admin: React.FC<AdminProps> = ({ products, setProducts, articles, setArtic
     }
   };
 
-  const addVariant = () => setEditingProduct(prev => prev ? { ...prev, variants: [...(prev.variants || []), { id: `v${Date.now()}`, name: '', sku: '', priceAdjustment: 0, stock: 0 }] } : null);
-  const updateVariant = (index: number, field: keyof ProductVariant, value: any) => setEditingProduct(prev => {
+  // Variant management functions - available for product form UI
+  /* eslint-disable @typescript-eslint/no-unused-vars */
+  void function addVariant() {
+    setEditingProduct(prev => prev ? {
+      ...prev,
+      variants: [...(prev.variants || []), { id: `v${Date.now()}`, name: '', sku: '', priceAdjustment: 0, stock: 0 } as ProductVariant]
+    } : null);
+  };
+  void function updateVariant(index: number, field: keyof ProductVariant, value: any) {
+    setEditingProduct(prev => {
+      if (!prev) return null;
+      const newVariants = [...(prev.variants || [])] as ProductVariant[];
+      newVariants[index] = { ...newVariants[index], [field]: value } as ProductVariant;
+      return { ...prev, variants: newVariants };
+    });
+  };
+  void function removeVariant(index: number) {
+    setEditingProduct(prev => {
       if (!prev) return null;
       const newVariants = [...(prev.variants || [])];
-      newVariants[index] = { ...newVariants[index], [field]: value };
+      newVariants.splice(index, 1);
       return { ...prev, variants: newVariants };
-  });
-  const removeVariant = (index: number) => setEditingProduct(prev => {
-       if (!prev) return null;
-       const newVariants = [...(prev.variants || [])];
-       newVariants.splice(index, 1);
-       return { ...prev, variants: newVariants };
-  });
-
-  const handleSaveArticle = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingArticle) return;
-    if (articles.some(a => a.id === editingArticle.id)) setArticles(prev => prev.map(a => a.id === editingArticle.id ? editingArticle : a));
-    else setArticles(prev => [...prev, editingArticle]);
-    setIsJournalDrawerOpen(false);
-    setTimeout(() => setEditingArticle(null), 300);
+    });
   };
-  const handleDeleteArticle = (id: number) => { if (confirm('Delete?')) setArticles(prev => prev.filter(a => a.id !== id)); };
+  /* eslint-enable @typescript-eslint/no-unused-vars */
+
+  const handleSaveArticle = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingArticle || isSaving) return;
+
+    setIsSaving(true);
+    try {
+      if (articles.some(a => a.id === editingArticle.id)) {
+        // Update existing article via API
+        const updated = await articlesApi.update(editingArticle.id, editingArticle);
+        setArticles(prev => prev.map(a => a.id === editingArticle.id ? updated : a));
+      } else {
+        // Create new article via API
+        const { id, comments, ...newArticleData } = editingArticle;
+        const created = await articlesApi.create(newArticleData);
+        setArticles(prev => [...prev, created]);
+      }
+      setIsJournalDrawerOpen(false);
+      setTimeout(() => setEditingArticle(null), 300);
+    } catch (error) {
+      console.error('Failed to save article:', error);
+      alert('Failed to save article. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteArticle = async (id: number) => {
+    if (!confirm('Delete this article?')) return;
+
+    try {
+      await articlesApi.delete(id);
+      setArticles(prev => prev.filter(a => a.id !== id));
+    } catch (error) {
+      console.error('Failed to delete article:', error);
+      alert('Failed to delete article. Please try again.');
+    }
+  };
   const startEditArticle = (article?: JournalArticle) => {
       if (article) setEditingArticle({ ...article });
       else setEditingArticle({ id: Date.now(), title: '', date: new Date().toLocaleDateString(), excerpt: '', image: '', video: '', content: '' });
@@ -282,38 +422,6 @@ const Admin: React.FC<AdminProps> = ({ products, setProducts, articles, setArtic
       return product.name.toLowerCase().includes(query) || product.category.toLowerCase().includes(query);
   });
 
-  // --- Login View ---
-  if (!isAuthenticated) {
-    return (
-      <div className={`min-h-screen ${theme === 'dark' ? 'bg-[#051009]' : 'bg-[#F5F2EB]'} flex items-center justify-center p-6 relative overflow-hidden`}>
-        <div className="absolute inset-0 z-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-        <div className={`${theme === 'dark' ? 'bg-[#0a1f12]/80 border-[#2C4A3B]' : 'bg-white/80 border-white/50'} backdrop-blur-xl p-12 rounded-2xl shadow-2xl max-w-md w-full text-center border z-10 animate-fade-in-up`}>
-            <div className="w-16 h-16 bg-[#1A4D2E] rounded-2xl mx-auto flex items-center justify-center mb-8 shadow-xl shadow-[#1A4D2E]/20 rotate-3 hover:rotate-6 transition-transform duration-500">
-                <span className="font-serif italic text-2xl text-[#F5F2EB]">H</span>
-            </div>
-            <h1 className={`text-3xl font-serif ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-[#1A4D2E]'} mb-2 tracking-tight`}>Welcome Back</h1>
-            <p className={`${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-500'} mb-10 text-sm font-medium`}>Enter your access key to manage your store.</p>
-            <form onSubmit={handleLogin} className="space-y-4">
-                <input 
-                    type="password" 
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Access Key" 
-                    className={`w-full ${theme === 'dark' ? 'bg-[#051009] border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]' : 'bg-white border-gray-200 text-[#111827] placeholder-gray-400'} border rounded-xl px-4 py-4 focus:ring-2 focus:ring-[#1A4D2E]/20 focus:border-[#1A4D2E] outline-none transition-all text-center tracking-widest text-lg`}
-                    autoFocus
-                />
-                <button type="submit" className="w-full bg-[#1A4D2E] text-white py-4 rounded-xl text-sm font-bold tracking-wide hover:bg-[#153e25] transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0">
-                    Unlock Dashboard
-                </button>
-            </form>
-            <button onClick={onExit} className={`mt-8 text-xs ${theme === 'dark' ? 'text-[#A8A29E] hover:text-[#EBE7DE]' : 'text-gray-400 hover:text-[#1A4D2E]'} transition-colors font-medium uppercase tracking-wider flex items-center justify-center gap-1 mx-auto`}>
-                <Icons.Close className="w-3 h-3" /> Return to Store
-            </button>
-        </div>
-      </div>
-    );
-  }
-
   // --- Main Dashboard View ---
   return (
     <div className={`min-h-screen ${theme === 'dark' ? 'bg-[#051009] text-[#EBE7DE]' : 'bg-white text-gray-900'} flex font-sans selection:bg-[#1A4D2E]/20`}>
@@ -330,6 +438,7 @@ const Admin: React.FC<AdminProps> = ({ products, setProducts, articles, setArtic
         
         <nav className="flex-1 px-4 mt-8 space-y-2">
             <SidebarLink active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<Icons.Home />} label="Overview" />
+            <SidebarLink active={activeTab === 'orders'} onClick={() => setActiveTab('orders')} icon={<Icons.ShoppingBag />} label="Orders" />
             <SidebarLink active={activeTab === 'products'} onClick={() => setActiveTab('products')} icon={<Icons.Box />} label="Inventory" />
             <SidebarLink active={activeTab === 'journal'} onClick={() => setActiveTab('journal')} icon={<Icons.Book />} label="Journal" />
         </nav>
@@ -394,10 +503,10 @@ const Admin: React.FC<AdminProps> = ({ products, setProducts, articles, setArtic
 
                     {/* Stats Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <StatCard icon={<Icons.Dollar />} title="Revenue" value="Rs. 24,500" trend="+12.5%" />
-                        <StatCard icon={<Icons.Users />} title="Active Users" value="1,240" trend="+5.2%" />
-                        <StatCard icon={<Icons.Box />} title="Pending Orders" value="34" trend="+8.1%" />
-                        <StatCard icon={<Icons.TrendingUp />} title="Conversion" value="3.2%" trend="-1.2%" positive={false} />
+                        <StatCard icon={<Icons.Dollar />} title="Total Revenue" value={formatPrice(orderStats.totalRevenue)} trend={orderStats.totalRevenue > 0 ? "+12.5%" : "0%"} />
+                        <StatCard icon={<Icons.ShoppingBag />} title="Total Orders" value={orderStats.totalOrders.toString()} trend={`+${orderStats.todayOrders} today`} />
+                        <StatCard icon={<Icons.Clock />} title="Pending Orders" value={orderStats.pendingOrders.toString()} trend={orderStats.pendingOrders > 0 ? "Needs attention" : "All clear"} positive={orderStats.pendingOrders === 0} />
+                        <StatCard icon={<Icons.Truck />} title="In Transit" value={orderStats.shippedOrders.toString()} trend={`${orderStats.deliveredOrders} delivered`} />
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -415,25 +524,159 @@ const Admin: React.FC<AdminProps> = ({ products, setProducts, articles, setArtic
                             <SalesChart />
                         </div>
 
-                        {/* Recent Activity */}
+                        {/* Recent Activity / Orders */}
                         <div className={`${theme === 'dark' ? 'bg-[#0a1f12] border-[#2C4A3B]' : 'bg-white border-gray-100'} p-8 rounded-xl border shadow-sm flex flex-col`}>
-                             <h3 className={`text-lg font-bold ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-[#1A4D2E]'} mb-6`}>Recent Activity</h3>
+                             <div className="flex justify-between items-center mb-6">
+                                <h3 className={`text-lg font-bold ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-[#1A4D2E]'}`}>Recent Orders</h3>
+                                <button onClick={() => setActiveTab('orders')} className={`text-xs font-medium ${theme === 'dark' ? 'text-[#A8A29E] hover:text-[#EBE7DE]' : 'text-gray-500 hover:text-[#1A4D2E]'}`}>View All</button>
+                             </div>
                              <div className="flex-1 space-y-0">
-                                {[1, 2, 3, 4].map((i) => (
-                                    <div key={i} className="flex gap-4 items-start relative pb-8 last:pb-0">
-                                        {i !== 4 && <div className={`absolute left-[15px] top-8 bottom-0 w-px ${theme === 'dark' ? 'bg-[#2C4A3B]' : 'bg-gray-100'}`}></div>}
-                                        <div className={`w-8 h-8 rounded-full ${theme === 'dark' ? 'bg-[#153e25] border-[#2C4A3B]' : 'bg-[#F5F2EB] border-white'} border shadow-sm flex items-center justify-center flex-shrink-0 z-10`}>
-                                            <div className="w-1.5 h-1.5 rounded-full bg-[#1A4D2E]"></div>
+                                {orders.length > 0 ? orders.slice(0, 4).map((order, i) => {
+                                    const timeDiff = Math.floor((Date.now() - new Date(order.createdAt).getTime()) / 60000);
+                                    const timeAgo = timeDiff < 60 ? `${timeDiff} mins ago` : timeDiff < 1440 ? `${Math.floor(timeDiff / 60)} hours ago` : `${Math.floor(timeDiff / 1440)} days ago`;
+                                    return (
+                                        <div key={order.id} className="flex gap-4 items-start relative pb-8 last:pb-0 cursor-pointer hover:opacity-80" onClick={() => { setSelectedOrder(order); setIsOrderDrawerOpen(true); }}>
+                                            {i !== Math.min(3, orders.length - 1) && <div className={`absolute left-[15px] top-8 bottom-0 w-px ${theme === 'dark' ? 'bg-[#2C4A3B]' : 'bg-gray-100'}`}></div>}
+                                            <div className={`w-8 h-8 rounded-full ${theme === 'dark' ? 'bg-[#153e25] border-[#2C4A3B]' : 'bg-[#F5F2EB] border-white'} border shadow-sm flex items-center justify-center flex-shrink-0 z-10`}>
+                                                <div className={`w-1.5 h-1.5 rounded-full ${order.status === 'Placed' ? 'bg-yellow-500 animate-pulse' : 'bg-[#1A4D2E]'}`}></div>
+                                            </div>
+                                            <div className="pt-1 flex-1">
+                                                <div className="flex justify-between items-start">
+                                                    <p className={`text-sm font-semibold ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-gray-900'}`}>Order #{order.orderNumber}</p>
+                                                    <span className={`px-2 py-0.5 text-[9px] rounded-full font-medium border ${getStatusColor(order.status)}`}>{order.status}</span>
+                                                </div>
+                                                <p className={`text-xs ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-500'} mt-0.5`}>{order.customerName} • {formatPrice(order.total)}</p>
+                                                <span className={`text-[10px] ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-400'} mt-2 block font-medium uppercase tracking-wide`}>{timeAgo}</span>
+                                            </div>
                                         </div>
-                                        <div className="pt-1">
-                                            <p className={`text-sm font-semibold ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-gray-900'}`}>New order #{1020 + i}</p>
-                                            <p className={`text-xs ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-500'} mt-0.5`}>Processed successfully via stripe.</p>
-                                            <span className={`text-[10px] ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-400'} mt-2 block font-medium uppercase tracking-wide`}>{i * 15} mins ago</span>
-                                        </div>
+                                    );
+                                }) : (
+                                    <div className={`text-center py-8 ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-400'}`}>
+                                        <Icons.ShoppingBag className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                        <p className="text-sm">No orders yet</p>
                                     </div>
-                                ))}
+                                )}
                              </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* --- Orders View --- */}
+            {activeTab === 'orders' && (
+                <div className="space-y-6 max-w-7xl mx-auto animate-fade-in-up">
+                    {/* Order Stats Summary */}
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        <button onClick={() => setOrderStatusFilter('all')} className={`p-4 rounded-xl border text-center transition-all ${orderStatusFilter === 'all' ? (theme === 'dark' ? 'bg-[#153e25] border-[#1A4D2E]' : 'bg-[#1A4D2E]/10 border-[#1A4D2E]') : (theme === 'dark' ? 'bg-[#0a1f12] border-[#2C4A3B] hover:border-[#1A4D2E]' : 'bg-white border-gray-200 hover:border-[#1A4D2E]')}`}>
+                            <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-[#1A4D2E]'}`}>{orders.length}</p>
+                            <p className={`text-xs ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-500'}`}>All Orders</p>
+                        </button>
+                        <button onClick={() => setOrderStatusFilter('Placed')} className={`p-4 rounded-xl border text-center transition-all ${orderStatusFilter === 'Placed' ? 'bg-yellow-50 border-yellow-300' : (theme === 'dark' ? 'bg-[#0a1f12] border-[#2C4A3B] hover:border-yellow-500' : 'bg-white border-gray-200 hover:border-yellow-500')}`}>
+                            <p className="text-2xl font-bold text-yellow-600">{orderStats.pendingOrders}</p>
+                            <p className={`text-xs ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-500'}`}>New Orders</p>
+                        </button>
+                        <button onClick={() => setOrderStatusFilter('Processing')} className={`p-4 rounded-xl border text-center transition-all ${orderStatusFilter === 'Processing' ? 'bg-blue-50 border-blue-300' : (theme === 'dark' ? 'bg-[#0a1f12] border-[#2C4A3B] hover:border-blue-500' : 'bg-white border-gray-200 hover:border-blue-500')}`}>
+                            <p className="text-2xl font-bold text-blue-600">{orderStats.processingOrders}</p>
+                            <p className={`text-xs ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-500'}`}>Processing</p>
+                        </button>
+                        <button onClick={() => setOrderStatusFilter('Shipped')} className={`p-4 rounded-xl border text-center transition-all ${orderStatusFilter === 'Shipped' ? 'bg-indigo-50 border-indigo-300' : (theme === 'dark' ? 'bg-[#0a1f12] border-[#2C4A3B] hover:border-indigo-500' : 'bg-white border-gray-200 hover:border-indigo-500')}`}>
+                            <p className="text-2xl font-bold text-indigo-600">{orderStats.shippedOrders}</p>
+                            <p className={`text-xs ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-500'}`}>Shipped</p>
+                        </button>
+                        <button onClick={() => setOrderStatusFilter('Delivered')} className={`p-4 rounded-xl border text-center transition-all ${orderStatusFilter === 'Delivered' ? 'bg-green-50 border-green-300' : (theme === 'dark' ? 'bg-[#0a1f12] border-[#2C4A3B] hover:border-green-500' : 'bg-white border-gray-200 hover:border-green-500')}`}>
+                            <p className="text-2xl font-bold text-green-600">{orderStats.deliveredOrders}</p>
+                            <p className={`text-xs ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-500'}`}>Delivered</p>
+                        </button>
+                    </div>
+
+                    {/* Search */}
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div className="relative w-full md:w-96 group">
+                            <Icons.Search className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-400'} group-focus-within:text-[#1A4D2E] transition-colors w-5 h-5`} />
+                            <input
+                                type="text"
+                                placeholder="Search by order #, customer name or email..."
+                                value={orderSearchQuery}
+                                onChange={(e) => setOrderSearchQuery(e.target.value)}
+                                className={`w-full ${theme === 'dark' ? 'bg-[#0a1f12] border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]' : 'bg-white border-gray-200 text-gray-900'} border focus:border-[#1A4D2E] focus:ring-4 focus:ring-[#1A4D2E]/5 rounded-xl pl-10 pr-4 py-2.5 text-sm transition-all shadow-sm outline-none`}
+                            />
+                        </div>
+                        {orderStatusFilter !== 'all' && (
+                            <button onClick={() => setOrderStatusFilter('all')} className={`text-sm ${theme === 'dark' ? 'text-[#A8A29E] hover:text-[#EBE7DE]' : 'text-gray-500 hover:text-[#1A4D2E]'} flex items-center gap-1`}>
+                                <Icons.Close className="w-4 h-4" /> Clear filter
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Orders Table */}
+                    <div className={`${theme === 'dark' ? 'bg-[#0a1f12] border-[#2C4A3B]' : 'bg-white border-gray-200'} rounded-xl border shadow-sm overflow-hidden`}>
+                        <table className="w-full text-left border-collapse">
+                            <thead className={`${theme === 'dark' ? 'bg-[#153e25]/50 border-[#2C4A3B]' : 'bg-gray-50/50 border-gray-100'} border-b`}>
+                                <tr>
+                                    <th className={`px-6 py-4 text-[10px] font-bold ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-400'} uppercase tracking-widest`}>Order</th>
+                                    <th className={`px-6 py-4 text-[10px] font-bold ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-400'} uppercase tracking-widest`}>Customer</th>
+                                    <th className={`px-6 py-4 text-[10px] font-bold ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-400'} uppercase tracking-widest`}>Items</th>
+                                    <th className={`px-6 py-4 text-[10px] font-bold ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-400'} uppercase tracking-widest`}>Total</th>
+                                    <th className={`px-6 py-4 text-[10px] font-bold ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-400'} uppercase tracking-widest`}>Status</th>
+                                    <th className={`px-6 py-4 text-[10px] font-bold ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-400'} uppercase tracking-widest text-right`}>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className={`divide-y ${theme === 'dark' ? 'divide-[#2C4A3B]' : 'divide-gray-50'}`}>
+                                {filteredOrders.length > 0 ? filteredOrders.map(order => (
+                                    <tr key={order.id} className={`${theme === 'dark' ? 'hover:bg-[#153e25]/80' : 'hover:bg-gray-50/80'} transition-colors group`}>
+                                        <td className="p-4 pl-6">
+                                            <div>
+                                                <p className={`font-semibold ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-gray-900'} text-sm`}>#{order.orderNumber}</p>
+                                                <p className={`text-xs ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-500'}`}>{new Date(order.createdAt).toLocaleDateString()}</p>
+                                            </div>
+                                        </td>
+                                        <td className="p-4 px-6">
+                                            <div>
+                                                <p className={`text-sm font-medium ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-gray-900'}`}>{order.customerName}</p>
+                                                <p className={`text-xs ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-500'}`}>{order.customerEmail}</p>
+                                            </div>
+                                        </td>
+                                        <td className={`p-4 px-6 text-sm ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-500'}`}>
+                                            {order.items.length} item{order.items.length !== 1 ? 's' : ''}
+                                        </td>
+                                        <td className="p-4 px-6">
+                                            <span className={`font-mono text-sm ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-gray-900'} font-medium`}>{formatPrice(order.total)}</span>
+                                        </td>
+                                        <td className="p-4 px-6">
+                                            <select
+                                                value={order.status}
+                                                onChange={(e) => updateOrderStatus(order.id, e.target.value as OrderStatus)}
+                                                className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${getStatusColor(order.status)} cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1A4D2E]/20`}
+                                            >
+                                                <option value="Placed">Placed</option>
+                                                <option value="Confirmed">Confirmed</option>
+                                                <option value="Processing">Processing</option>
+                                                <option value="Shipped">Shipped</option>
+                                                <option value="Out for Delivery">Out for Delivery</option>
+                                                <option value="Delivered">Delivered</option>
+                                                <option value="Cancelled">Cancelled</option>
+                                                <option value="Returned">Returned</option>
+                                            </select>
+                                        </td>
+                                        <td className="p-4 px-6 text-right">
+                                            <button
+                                                onClick={() => { setSelectedOrder(order); setIsOrderDrawerOpen(true); }}
+                                                className={`p-2 ${theme === 'dark' ? 'text-[#A8A29E] hover:text-[#EBE7DE] hover:bg-[#153e25]' : 'text-gray-400 hover:text-[#1A4D2E] hover:bg-[#1A4D2E]/5'} rounded-lg transition-colors`}
+                                                title="View Details"
+                                            >
+                                                <Icons.Eye className="w-4 h-4" />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                )) : (
+                                    <tr>
+                                        <td colSpan={6} className={`p-16 text-center ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-400'}`}>
+                                            {orderSearchQuery || orderStatusFilter !== 'all' ? 'No orders match your filters.' : 'No orders yet.'}
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             )}
@@ -710,6 +953,158 @@ const Admin: React.FC<AdminProps> = ({ products, setProducts, articles, setArtic
                     <RichTextEditor value={typeof editingArticle.content === 'string' ? editingArticle.content : ''} onChange={val => setEditingArticle({...editingArticle, content: val})} />
                 </div>
              </form>
+        )}
+      </SlideOver>
+
+      {/* Order Detail Drawer */}
+      <SlideOver
+        isOpen={isOrderDrawerOpen}
+        onClose={() => setIsOrderDrawerOpen(false)}
+        title={`Order #${selectedOrder?.orderNumber || ''}`}
+      >
+        {selectedOrder && (
+          <div className="space-y-6">
+            {/* Order Status */}
+            <div className={`p-6 rounded-xl ${theme === 'dark' ? 'bg-[#0a1f12] border-[#2C4A3B]' : 'bg-white border-gray-200'} border`}>
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <p className={`text-xs uppercase tracking-wider ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-500'} mb-1`}>Current Status</p>
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(selectedOrder.status)}`}>{selectedOrder.status}</span>
+                </div>
+                <div className="text-right">
+                  <p className={`text-xs uppercase tracking-wider ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-500'} mb-1`}>Payment</p>
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${selectedOrder.paymentStatus === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                    {selectedOrder.paymentStatus}
+                  </span>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-dashed border-gray-200 dark:border-gray-700">
+                <div>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-500'}`}>Order Date</p>
+                  <p className={`font-medium ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-gray-900'}`}>{new Date(selectedOrder.createdAt).toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-500'}`}>Payment Method</p>
+                  <p className={`font-medium ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-gray-900'}`}>{selectedOrder.paymentMethod}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Update Status */}
+            <div className={`p-6 rounded-xl ${theme === 'dark' ? 'bg-[#0a1f12] border-[#2C4A3B]' : 'bg-white border-gray-200'} border`}>
+              <h4 className={`text-sm font-bold ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-gray-900'} mb-4`}>Update Order Status</h4>
+              <div className="grid grid-cols-4 gap-2">
+                {(['Confirmed', 'Processing', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled'] as OrderStatus[]).map(status => (
+                  <button
+                    key={status}
+                    onClick={() => updateOrderStatus(selectedOrder.id, status)}
+                    disabled={selectedOrder.status === status}
+                    className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                      selectedOrder.status === status
+                        ? `${getStatusColor(status)} cursor-not-allowed`
+                        : `${theme === 'dark' ? 'bg-[#153e25] text-[#A8A29E] hover:text-[#EBE7DE]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`
+                    }`}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Customer Info */}
+            <div className={`p-6 rounded-xl ${theme === 'dark' ? 'bg-[#0a1f12] border-[#2C4A3B]' : 'bg-white border-gray-200'} border`}>
+              <h4 className={`text-sm font-bold ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-gray-900'} mb-4`}>Customer Information</h4>
+              <div className="space-y-3">
+                <div>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-500'}`}>Name</p>
+                  <p className={`font-medium ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-gray-900'}`}>{selectedOrder.customerName}</p>
+                </div>
+                <div>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-500'}`}>Email</p>
+                  <p className={`font-medium ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-gray-900'}`}>{selectedOrder.customerEmail}</p>
+                </div>
+                <div>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-500'}`}>Phone</p>
+                  <p className={`font-medium ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-gray-900'}`}>{selectedOrder.shippingAddress.phone}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Shipping Address */}
+            <div className={`p-6 rounded-xl ${theme === 'dark' ? 'bg-[#0a1f12] border-[#2C4A3B]' : 'bg-white border-gray-200'} border`}>
+              <h4 className={`text-sm font-bold ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-gray-900'} mb-4`}>Shipping Address</h4>
+              <div className={`${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-gray-700'}`}>
+                <p className="font-medium">{selectedOrder.shippingAddress.fullName}</p>
+                <p>{selectedOrder.shippingAddress.address}</p>
+                <p>{selectedOrder.shippingAddress.city}, {selectedOrder.shippingAddress.state} {selectedOrder.shippingAddress.postalCode}</p>
+                <p>{selectedOrder.shippingAddress.country}</p>
+              </div>
+            </div>
+
+            {/* Order Items */}
+            <div className={`p-6 rounded-xl ${theme === 'dark' ? 'bg-[#0a1f12] border-[#2C4A3B]' : 'bg-white border-gray-200'} border`}>
+              <h4 className={`text-sm font-bold ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-gray-900'} mb-4`}>Order Items</h4>
+              <div className="space-y-4">
+                {selectedOrder.items.map((item, idx) => (
+                  <div key={idx} className="flex gap-4">
+                    <div className={`w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 ${theme === 'dark' ? 'bg-[#153e25]' : 'bg-gray-100'}`}>
+                      <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex-1">
+                      <p className={`font-medium ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-gray-900'}`}>{item.name}</p>
+                      {item.variant && <p className={`text-xs ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-500'}`}>{item.variant}</p>}
+                      <p className={`text-sm ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-500'}`}>Qty: {item.quantity} × {formatPrice(item.price)}</p>
+                    </div>
+                    <div className={`font-medium ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-gray-900'}`}>
+                      {formatPrice(item.price * item.quantity)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className={`mt-4 pt-4 border-t ${theme === 'dark' ? 'border-[#2C4A3B]' : 'border-gray-200'} space-y-2`}>
+                <div className="flex justify-between text-sm">
+                  <span className={theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-500'}>Subtotal</span>
+                  <span className={theme === 'dark' ? 'text-[#EBE7DE]' : 'text-gray-900'}>{formatPrice(selectedOrder.subtotal)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className={theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-500'}>Shipping</span>
+                  <span className={theme === 'dark' ? 'text-[#EBE7DE]' : 'text-gray-900'}>{formatPrice(selectedOrder.shippingCost)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className={theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-500'}>Tax</span>
+                  <span className={theme === 'dark' ? 'text-[#EBE7DE]' : 'text-gray-900'}>{formatPrice(selectedOrder.tax)}</span>
+                </div>
+                <div className={`flex justify-between font-bold text-lg pt-2 border-t ${theme === 'dark' ? 'border-[#2C4A3B]' : 'border-gray-200'}`}>
+                  <span className={theme === 'dark' ? 'text-[#EBE7DE]' : 'text-gray-900'}>Total</span>
+                  <span className={theme === 'dark' ? 'text-[#EBE7DE]' : 'text-[#1A4D2E]'}>{formatPrice(selectedOrder.total)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Order Timeline */}
+            <div className={`p-6 rounded-xl ${theme === 'dark' ? 'bg-[#0a1f12] border-[#2C4A3B]' : 'bg-white border-gray-200'} border`}>
+              <h4 className={`text-sm font-bold ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-gray-900'} mb-4`}>Order Timeline</h4>
+              <div className="space-y-0">
+                {selectedOrder.timeline.slice().reverse().map((event, idx) => (
+                  <div key={idx} className="flex gap-4 relative pb-6 last:pb-0">
+                    {idx !== selectedOrder.timeline.length - 1 && (
+                      <div className={`absolute left-[11px] top-6 bottom-0 w-0.5 ${theme === 'dark' ? 'bg-[#2C4A3B]' : 'bg-gray-200'}`} />
+                    )}
+                    <div className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center ${idx === 0 ? 'bg-[#1A4D2E]' : theme === 'dark' ? 'bg-[#2C4A3B]' : 'bg-gray-200'}`}>
+                      <div className={`w-2 h-2 rounded-full ${idx === 0 ? 'bg-white' : theme === 'dark' ? 'bg-[#5D5A53]' : 'bg-white'}`} />
+                    </div>
+                    <div className="flex-1">
+                      <p className={`font-medium text-sm ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-gray-900'}`}>{event.status}</p>
+                      <p className={`text-xs ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-gray-500'}`}>{event.description}</p>
+                      <p className={`text-xs ${theme === 'dark' ? 'text-[#5D5A53]' : 'text-gray-400'} mt-1`}>
+                        {new Date(event.timestamp).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         )}
       </SlideOver>
 
