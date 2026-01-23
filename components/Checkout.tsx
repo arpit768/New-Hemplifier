@@ -35,8 +35,8 @@ const Checkout: React.FC<CheckoutProps> = ({ items, onBack, onCheckoutComplete, 
     newsletter: false,
   });
 
-  // Payment method state
-  const [paymentMethod, setPaymentMethod] = useState('card');
+  // Payment method state - only COD available
+  const [paymentMethod] = useState('cod');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -219,72 +219,35 @@ const Checkout: React.FC<CheckoutProps> = ({ items, onBack, onCheckoutComplete, 
               <div>
                 <h2 className={`text-xl font-serif ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-[#1A4D2E]'} mb-6`}>{t('payment')}</h2>
 
-                {/* Payment Method Selection */}
-                <div className="space-y-3 mb-6">
-                  <label className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${paymentMethod === 'card' ? (theme === 'dark' ? 'border-[#EBE7DE] bg-[#1A4D2E]/20' : 'border-[#1A4D2E] bg-[#1A4D2E]/5') : (theme === 'dark' ? 'border-[#2C4A3B]' : 'border-[#D6D1C7]')}`}>
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="card"
-                      checked={paymentMethod === 'card'}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="accent-[#1A4D2E]"
-                    />
-                    <span className={`${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-[#1A4D2E]'}`}>Credit Card</span>
-                  </label>
-                  <label className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${paymentMethod === 'cod' ? (theme === 'dark' ? 'border-[#EBE7DE] bg-[#1A4D2E]/20' : 'border-[#1A4D2E] bg-[#1A4D2E]/5') : (theme === 'dark' ? 'border-[#2C4A3B]' : 'border-[#D6D1C7]')}`}>
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="cod"
-                      checked={paymentMethod === 'cod'}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="accent-[#1A4D2E]"
-                    />
-                    <span className={`${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-[#1A4D2E]'}`}>Cash on Delivery</span>
-                  </label>
-                  <label className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${paymentMethod === 'esewa' ? (theme === 'dark' ? 'border-[#EBE7DE] bg-[#1A4D2E]/20' : 'border-[#1A4D2E] bg-[#1A4D2E]/5') : (theme === 'dark' ? 'border-[#2C4A3B]' : 'border-[#D6D1C7]')}`}>
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="esewa"
-                      checked={paymentMethod === 'esewa'}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="accent-[#1A4D2E]"
-                    />
-                    <span className={`${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-[#1A4D2E]'}`}>eSewa</span>
-                  </label>
+                {/* Payment Method - Cash on Delivery Only */}
+                <div className={`p-6 border ${theme === 'dark' ? 'border-[#EBE7DE] bg-[#1A4D2E]/20' : 'border-[#1A4D2E] bg-[#1A4D2E]/5'} rounded-lg`}>
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className={`flex-shrink-0 w-10 h-10 rounded-full ${theme === 'dark' ? 'bg-[#EBE7DE]' : 'bg-[#1A4D2E]'} flex items-center justify-center`}>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-6 h-6 ${theme === 'dark' ? 'text-[#051009]' : 'text-white'}`}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className={`text-lg font-serif ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-[#1A4D2E]'} mb-2`}>
+                        Cash on Delivery
+                      </h3>
+                      <p className={`text-sm ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-[#5D5A53]'} leading-relaxed`}>
+                        Pay with cash when your order is delivered to your doorstep. Please have the exact amount ready for the delivery person.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className={`mt-4 pt-4 border-t ${theme === 'dark' ? 'border-[#2C4A3B]' : 'border-[#1A4D2E]/20'}`}>
+                    <div className="flex items-center gap-2 text-xs">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-4 h-4 ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className={`${theme === 'dark' ? 'text-[#A8A29E]' : 'text-[#5D5A53]'}`}>
+                        Safe and convenient payment method
+                      </span>
+                    </div>
+                  </div>
                 </div>
-
-                {/* Card Details - only show when card payment selected */}
-                {paymentMethod === 'card' && (
-                  <div className={`p-6 border ${theme === 'dark' ? 'border-[#2C4A3B] bg-[#0a1f12]' : 'border-[#D6D1C7] bg-white/50'} space-y-4`}>
-                     <p className={`text-sm ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-[#5D5A53]'} mb-2`}>All transactions are secure and encrypted.</p>
-                     <input type="text" placeholder="Card number" required className={`w-full bg-transparent border-b ${theme === 'dark' ? 'border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]/50' : 'border-[#D6D1C7] text-[#1A4D2E] placeholder-[#5D5A53]/50'} py-3 outline-none focus:border-current transition-colors`} />
-                     <div className="grid grid-cols-2 gap-4">
-                        <input type="text" placeholder="Expiration (MM/YY)" required className={`w-full bg-transparent border-b ${theme === 'dark' ? 'border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]/50' : 'border-[#D6D1C7] text-[#1A4D2E] placeholder-[#5D5A53]/50'} py-3 outline-none focus:border-current transition-colors`} />
-                        <input type="text" placeholder="Security code" required className={`w-full bg-transparent border-b ${theme === 'dark' ? 'border-[#2C4A3B] text-[#EBE7DE] placeholder-[#A8A29E]/50' : 'border-[#D6D1C7] text-[#1A4D2E] placeholder-[#5D5A53]/50'} py-3 outline-none focus:border-current transition-colors`} />
-                     </div>
-                  </div>
-                )}
-
-                {/* COD Notice */}
-                {paymentMethod === 'cod' && (
-                  <div className={`p-6 border ${theme === 'dark' ? 'border-[#2C4A3B] bg-[#0a1f12]' : 'border-[#D6D1C7] bg-white/50'}`}>
-                    <p className={`text-sm ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-[#5D5A53]'}`}>
-                      Pay with cash when your order is delivered. Please have the exact amount ready.
-                    </p>
-                  </div>
-                )}
-
-                {/* eSewa Notice */}
-                {paymentMethod === 'esewa' && (
-                  <div className={`p-6 border ${theme === 'dark' ? 'border-[#2C4A3B] bg-[#0a1f12]' : 'border-[#D6D1C7] bg-white/50'}`}>
-                    <p className={`text-sm ${theme === 'dark' ? 'text-[#A8A29E]' : 'text-[#5D5A53]'}`}>
-                      You will be redirected to eSewa to complete your payment securely.
-                    </p>
-                  </div>
-                )}
               </div>
 
               <div>

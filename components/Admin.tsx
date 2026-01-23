@@ -120,25 +120,63 @@ const RichTextEditor = ({ value, onChange }: { value: string, onChange: (val: st
     );
 };
 
-const SalesChart = () => {
-    // Elegant line-chart style visualization with CSS gradients
+const SalesChart = ({ orders }: { orders: Order[] }) => {
+    const { formatPrice } = useContext(SettingsContext);
+
+    // Calculate sales data for last 12 days
+    const getSalesData = () => {
+        const days = 12;
+        const salesData: { date: string; revenue: number; orderCount: number }[] = [];
+        const today = new Date();
+
+        for (let i = days - 1; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toDateString();
+
+            const dayOrders = orders.filter(o => {
+                const orderDate = new Date(o.createdAt).toDateString();
+                return orderDate === dateStr && o.status !== 'Cancelled';
+            });
+
+            const revenue = dayOrders.reduce((sum, o) => sum + o.total, 0);
+
+            salesData.push({
+                date: dateStr,
+                revenue,
+                orderCount: dayOrders.length
+            });
+        }
+
+        return salesData;
+    };
+
+    const salesData = getSalesData();
+    const maxRevenue = Math.max(...salesData.map(d => d.revenue), 1);
+
     return (
         <div className="w-full h-64 flex items-end justify-between gap-2 pt-8 px-2">
-            {[45, 60, 35, 80, 55, 90, 100, 85, 70, 95, 110, 105].map((d, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-2 group relative">
-                    <div className="absolute -top-8 opacity-0 group-hover:opacity-100 transition-opacity bg-[#1A4D2E] text-white text-[10px] px-2 py-1 rounded mb-1">
-                        {d} sales
+            {salesData.map((d, i) => {
+                const heightPercent = maxRevenue > 0 ? (d.revenue / maxRevenue) * 100 : 0;
+                const dayLabel = new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+                return (
+                    <div key={i} className="flex-1 flex flex-col items-center gap-2 group relative">
+                        <div className="absolute -top-16 opacity-0 group-hover:opacity-100 transition-opacity bg-[#1A4D2E] text-white text-[10px] px-2 py-1 rounded mb-1 whitespace-nowrap z-10">
+                            <div className="font-bold">{formatPrice(d.revenue)}</div>
+                            <div className="text-[9px] opacity-80">{d.orderCount} order{d.orderCount !== 1 ? 's' : ''}</div>
+                            <div className="text-[9px] opacity-60">{dayLabel}</div>
+                        </div>
+                        <div
+                            className="w-full bg-[#1A4D2E]/10 rounded-t-sm relative overflow-hidden transition-all duration-500 ease-out group-hover:bg-[#1A4D2E]/20"
+                            style={{ height: heightPercent > 0 ? `${heightPercent}%` : '2%', minHeight: heightPercent > 0 ? 'auto' : '2px' }}
+                        >
+                            <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-[#1A4D2E] to-[#1A4D2E]/40 h-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-[#1A4D2E] rounded-full opacity-0 group-hover:opacity-100 transition-opacity delay-75"></div>
+                        </div>
                     </div>
-                    <div 
-                        className="w-full bg-[#1A4D2E]/10 rounded-t-sm relative overflow-hidden transition-all duration-500 ease-out group-hover:bg-[#1A4D2E]/20" 
-                        style={{ height: `${(d/120)*100}%` }}
-                    >
-                        <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-[#1A4D2E] to-[#1A4D2E]/40 h-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                        {/* Simulating a line chart connection point */}
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-[#1A4D2E] rounded-full opacity-0 group-hover:opacity-100 transition-opacity delay-75"></div>
-                    </div>
-                </div>
-            ))}
+                );
+            })}
         </div>
     );
 };
@@ -213,7 +251,7 @@ const Admin: React.FC<AdminProps> = ({ products, setProducts, articles, setArtic
     processingOrders: orders.filter(o => o.status === 'Processing').length,
     shippedOrders: orders.filter(o => o.status === 'Shipped' || o.status === 'Out for Delivery').length,
     deliveredOrders: orders.filter(o => o.status === 'Delivered').length,
-    totalRevenue: orders.filter(o => o.paymentStatus === 'Paid').reduce((sum, o) => sum + o.total, 0),
+    totalRevenue: orders.filter(o => o.status !== 'Cancelled').reduce((sum, o) => sum + o.total, 0),
     todayOrders: orders.filter(o => {
       const today = new Date().toDateString();
       return new Date(o.createdAt).toDateString() === today;
@@ -521,7 +559,7 @@ const Admin: React.FC<AdminProps> = ({ products, setProducts, articles, setArtic
                                     <option>Last 30 Days</option>
                                 </select>
                             </div>
-                            <SalesChart />
+                            <SalesChart orders={orders} />
                         </div>
 
                         {/* Recent Activity / Orders */}

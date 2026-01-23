@@ -124,11 +124,11 @@ const Navbar: React.FC<NavbarProps> = ({ onNavClick, cartCount, onOpenCart, onSe
              {/* Switches */}
              <div className="hidden md:flex items-center gap-4 mr-2">
                 <div className="flex items-center gap-2">
-                    <button 
+                    <button
                         onClick={() => setLanguage(language === 'en' ? 'ne' : 'en')}
                         className="text-[10px] font-bold uppercase tracking-widest opacity-60 hover:opacity-100"
                     >
-                        {language === 'en' ? 'NP' : 'EN'}
+                        {language === 'en' ? 'EN' : 'NP'}
                     </button>
                     <div className="h-3 w-px bg-current opacity-30"></div>
                     <button 
@@ -262,11 +262,11 @@ const Navbar: React.FC<NavbarProps> = ({ onNavClick, cartCount, onOpenCart, onSe
           <div className={`flex flex-col items-center space-y-8 text-2xl font-serif font-medium ${theme === 'dark' ? 'text-[#EBE7DE]' : 'text-[#1A4D2E]'} w-full px-12 relative`}>
             
              <div className="flex flex-wrap gap-4 mb-8 justify-center items-center">
-                <button 
+                <button
                     onClick={() => setLanguage(language === 'en' ? 'ne' : 'en')}
                     className="text-sm font-bold uppercase tracking-wide border border-current px-4 py-2 rounded-full"
                 >
-                    {language === 'en' ? 'Nepali' : 'English'}
+                    {language === 'en' ? 'English' : 'Nepali'}
                 </button>
                  <button 
                     onClick={() => setCurrency(currency === 'NPR' ? 'USD' : 'NPR')}

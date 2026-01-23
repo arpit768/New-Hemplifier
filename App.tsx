@@ -26,6 +26,7 @@ import { TRANSLATIONS } from './constants';
 import { Product, JournalArticle, ViewState, Language, Customer, Currency, Order } from './types';
 import OrderTracking from './components/OrderTracking';
 import { productsApi, ordersApi, articlesApi, authApi, wishlistApi } from './lib/api';
+import { detectLocationAndCurrency } from './services/geolocation';
 
 // Create Global Context for Settings
 export const SettingsContext = createContext<{
@@ -63,7 +64,23 @@ function App() {
   
   // Settings State - Initialize theme lazily to prevent flash
   const [language, setLanguage] = useState<Language>('en');
-  const [currency, setCurrency] = useState<Currency>('NPR');
+  const [currency, setCurrencyState] = useState<Currency>(() => {
+    // Check if user has manually set currency before
+    if (typeof window !== 'undefined') {
+      const storedCurrency = localStorage.getItem('hemplifier-currency');
+      if (storedCurrency === 'NPR' || storedCurrency === 'USD') return storedCurrency;
+    }
+    // Default to NPR, will be updated by geolocation
+    return 'NPR';
+  });
+
+  // Wrapper to handle manual currency changes
+  const setCurrency = (curr: Currency) => {
+    setCurrencyState(curr);
+    localStorage.setItem('hemplifier-currency', curr);
+    // Mark that user has manually set currency
+    localStorage.setItem('hemplifier-currency-manual', 'true');
+  };
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window !== 'undefined') {
       const storedTheme = localStorage.getItem('hemplifier-theme');
@@ -92,6 +109,29 @@ function App() {
   // Loading and error states for future use (e.g., showing loading spinners)
   const [, setDataLoading] = useState(true);
   const [, setDataError] = useState<string | null>(null);
+
+  // Detect user location and set currency automatically
+  useEffect(() => {
+    const detectAndSetCurrency = async () => {
+      // Only auto-detect if user hasn't manually set currency
+      const hasManualCurrency = localStorage.getItem('hemplifier-currency-manual');
+      if (hasManualCurrency) {
+        console.log('User has manually set currency, skipping auto-detection');
+        return;
+      }
+
+      try {
+        const { currency: detectedCurrency, country } = await detectLocationAndCurrency();
+        console.log(`Detected location: ${country}, setting currency to ${detectedCurrency}`);
+        setCurrencyState(detectedCurrency);
+        localStorage.setItem('hemplifier-currency', detectedCurrency);
+      } catch (error) {
+        console.error('Failed to detect location, using default currency');
+      }
+    };
+
+    detectAndSetCurrency();
+  }, []);
 
   // Fetch all data from API on mount
   useEffect(() => {
@@ -154,9 +194,9 @@ function App() {
     // Auto-detect currency based on timezone
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (timeZone && !timeZone.includes('Kathmandu') && !timeZone.includes('Nepal')) {
-      setCurrency('USD');
+      setCurrencyState('USD');
     } else {
-      setCurrency('NPR');
+      setCurrencyState('NPR');
     }
 
     // Handle URL hash-based routing for admin access
@@ -733,6 +773,14 @@ function App() {
                       customer={currentUser}
                       orders={orders.filter(o => o.customerId === currentUser.id)}
                       onLogout={handleCustomerLogout}
+                      products={products}
+                      wishlist={wishlist}
+                      onToggleWishlist={handleToggleWishlist}
+                      onAddToCart={addToCart}
+                      onProductClick={(p) => {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        setView({ type: 'product', product: p });
+                      }}
                   />
               )}
 

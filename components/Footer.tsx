@@ -76,9 +76,8 @@ const Footer: React.FC<FooterProps> = ({ onLinkClick }) => {
         </div>
       </div>
 
-      <div className="max-w-[1800px] mx-auto mt-20 pt-8 border-t border-[#D6D1C7] flex flex-col md:flex-row justify-between items-center text-xs uppercase tracking-widest opacity-60">
-        <p>Created by @chanelluuh</p>
-        <p className="mt-4 md:mt-0">© {new Date().getFullYear()} Hemplifier. All rights reserved.</p>
+      <div className="max-w-[1800px] mx-auto mt-20 pt-8 border-t border-[#D6D1C7] flex justify-center items-center text-xs uppercase tracking-widest opacity-60">
+        <p>© {new Date().getFullYear()} Hemplifier. All rights reserved.</p>
       </div>
     </footer>
   );
